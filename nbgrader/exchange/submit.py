@@ -9,8 +9,12 @@ from textwrap import dedent
 from traitlets import Bool
 
 from .exchange import Exchange
-from ..utils import get_username, check_mode, find_all_notebooks
+from ..utils import get_username, check_mode, find_all_notebooks, compute_notebook_checksum
 
+import nbformat as nbf
+import json
+import numpy as np
+import distutils
 
 class ExchangeSubmit(Exchange):
 
@@ -101,9 +105,93 @@ class ExchangeSubmit(Exchange):
                     "".format(self.coursedir.assignment_id, diff_msg)
                 )
 
+    def add_hashcode(self, notebook_file, hashcode):
+        nb = nbf.v4.new_notebook()
+        #notebook_file = os.path.join(self.src_path, self.coursedir.assignment_id+".ipynb")
+        nbr = nbf.read(notebook_file, as_version=4)
+        #hash_code = np.random.randint(0,9,6)
+        #hash_str = ''.join(str(e) for e in hashcode)
+        hash_str = str(hashcode)
+
+        hashcode_cell = """<div class=\"alert alert-block alert-danger\"> \n\nIhr Haschcode: {} \n\n</div>\n\n
+                   """.format(hash_str)
+        # TODO: * Add time stamp to
+
+        # check whether the hashcode has been generated before
+        meta_found = False
+        meta_src_idx = None
+        hashcode_markdown_id = "hashcode_cell"
+        for i,c in enumerate(nbr['cells']):
+            curr_cel = c
+            if curr_cel['cell_type'] == "markdown":
+                metadata = curr_cel['metadata']
+                source = curr_cel['source']
+                if 'name' in metadata:
+                    for meta in metadata:
+                        metadata_nbgrader = metadata['name']
+                        if metadata_nbgrader == hashcode_markdown_id:
+                            meta_found = True
+                            meta_src_idx = i
+
+        # if meta found in nb already, then append
+        # otherwise append new cell for hashcode
+        if meta_found:
+            nbr['cells'][meta_src_idx]['source'] = hashcode_cell
+        else:    
+            addition = nbf.v4.new_markdown_cell(hashcode_cell)
+            addition['metadata']["name"] = hashcode_markdown_id
+            addition['metadata']["deletable"] = False
+            addition['metadata']["editable"] = False
+            nbr['cells'].append(addition)
+
+        # Write the updated notebook with hashcode
+        f = None
+        try:
+            f = open(notebook_file, 'w')
+            nbf.write(nbr, f)
+        finally:
+            if f is not None:
+                f.close()
+
+    def generate_html(self, hashcoded_notebook_file, html_file):
+        print("Convert to html using nbconvert")
+        print ("GENERATE: ",html_file)
+        os.system('jupyter nbconvert --to html {} {}'.format(hashcoded_notebook_file, html_file))
+
+    def generate_hashcode(self,filename):
+        notebook_file = os.path.join(self.src_path, self.coursedir.assignment_id+".ipynb")
+        return hash_with_md5(notebook_file)
+
+    def copy_and_overwrite_dir(self, src, dest):
+        distutils.dir_util.copy_tree(src, dest)
+
     def copy_files(self):
         self.init_release()
 
+        self.log.info("Copying course_dir into .temp")
+        user_home_dir = os.path.abspath(os.path.join(os.path.dirname(self.src_path), '.'))
+        temp_path = os.path.join(user_home_dir, ".temp", self.coursedir.assignment_id)
+        self.copy_and_overwrite_dir(self.src_path, temp_path)
+        
+        # Original notebook file
+        student_notebook_file = os.path.join(self.src_path, self.coursedir.assignment_id+".ipynb")
+        hashcode = compute_notebook_checksum(student_notebook_file)
+        self.log.info("Hashcode generated: {}".format(hashcode))
+        
+        # write hashcode to hashcoded_notebook_version
+        self.log.info("Writing hashcode to .temp version")
+        hashcoded_notebook_file = os.path.join(temp_path, self.coursedir.assignment_id+".ipynb")
+        temp_html_file = os.path.join(temp_path, self.coursedir.assignment_id+".html")
+        self.add_hashcode(hashcoded_notebook_file, hashcode)
+        
+        # generate html inside the original nbgrader directory     
+        self.log.info("Generate html and copy html to student course dir")  
+        self.generate_html(hashcoded_notebook_file, temp_html_file)
+        
+        # Copy html file to course_dir
+        student_html_file = os.path.join(self.src_path, self.coursedir.assignment_id+".html")
+        distutils.file_util.copy_file(temp_html_file, student_html_file)
+        
         dest_path = os.path.join(self.inbound_path, self.assignment_filename)
         cache_path = os.path.join(self.cache_path, self.assignment_filename)
 
@@ -125,10 +213,7 @@ class ExchangeSubmit(Exchange):
             dest_path,
             S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IWOTH|S_IXOTH
         )
-        print("Convert to html using nbconvert")
-        notebook_file = os.path.join(self.src_path, self.coursedir.assignment_id+".ipynb")
-        html_file = os.path.join(self.src_path, self.coursedir.assignment_id+".html")
-        os.system('jupyter nbconvert --to html {} {}'.format(notebook_file, html_file))
+        
         # also copy to the cache
         if not os.path.isdir(self.cache_path):
             os.makedirs(self.cache_path)
