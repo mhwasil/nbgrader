@@ -108,13 +108,6 @@ def compute_checksum(cell):
 
     return m.hexdigest()
 
-def compute_notebook_checksum(filename):
-    hash_md5 = hashlib.md5()
-    with open(filename, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
-
 def parse_utc(ts):
     """Parses a timestamp into datetime format, converting it to UTC if necessary."""
     if ts is None:
@@ -226,6 +219,17 @@ def full_split(path):
     else:
         return full_split(rest) + (last,)
 
+def compute_hashcode(filename, method='md5'):
+    if method=='md5':
+        hashcode = hashlib.md5()
+    elif method=='sha1':
+        hashcode = hashlib.sha1()
+
+    with open(filename, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hashcode.update(chunk)
+            
+    return hashcode.hexdigest()
 
 @contextlib.contextmanager
 def chdir(dirname):
