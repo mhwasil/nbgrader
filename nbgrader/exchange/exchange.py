@@ -7,6 +7,7 @@ import glob
 from textwrap import dedent
 
 from dateutil.tz import gettz
+from dateutil import tz
 from traitlets.config import LoggingConfigurable
 from traitlets import Unicode, Bool, Instance, default, validate
 from jupyter_core.paths import jupyter_data_dir
@@ -86,10 +87,13 @@ class Exchange(LoggingConfigurable):
 
     def set_timestamp(self):
         """Set the timestap using the configured timezone."""
-        tz = gettz(self.timezone)
+        # Use UTC timezon
+        #tz_utc = gettz(self.timezone)
+        # Use local time zone
+        tz_local = tz.tzlocal()
         if tz is None:
             self.fail("Invalid timezone: {}".format(self.timezone))
-        self.timestamp = datetime.datetime.now(tz).strftime(self.timestamp_format)
+        self.timestamp = datetime.datetime.now(tz_local).strftime(self.timestamp_format)
 
     def set_perms(self, dest, fileperms, dirperms):
         all_dirs = []
