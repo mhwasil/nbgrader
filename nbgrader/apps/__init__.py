@@ -18,7 +18,6 @@ from .dbapp import (
     DbAssignmentAddApp, DbAssignmentRemoveApp, DbAssignmentImportApp, DbAssignmentListApp)
 from .updateapp import UpdateApp
 from .zipcollectapp import ZipCollectApp
-from .generateconfigapp import GenerateConfigApp
 from .nbgraderapp import NbGraderApp
 from .api import NbGraderAPI
 
@@ -51,6 +50,5 @@ __all__ = [
     'DbAssignmentListApp',
     'UpdateApp',
     'ZipCollectApp',
-    'GenerateConfigApp'
     'NbGraderAPI'
 ]

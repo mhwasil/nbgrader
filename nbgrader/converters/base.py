@@ -15,7 +15,6 @@ from nbconvert.writers import FilesWriter
 from ..coursedir import CourseDirectory
 from ..utils import find_all_files, rmtree, remove
 from ..preprocessors.execute import UnresponsiveKernelError
-from ..nbgraderformat import SchemaMismatchError
 
 
 class NbGraderException(Exception):
@@ -101,30 +100,17 @@ class BaseConverter(LoggingConfigurable):
     def init_notebooks(self):
         self.assignments = {}
         self.notebooks = []
-        assignment_glob = self._format_source(self.coursedir.assignment_id, self.coursedir.student_id)
-        for assignment in glob.glob(assignment_glob):
-            notebook_glob = os.path.join(assignment, self.coursedir.notebook_id + ".ipynb")
-            found = glob.glob(notebook_glob)
+        fullglob = self._format_source(self.coursedir.assignment_id, self.coursedir.student_id)
+        for assignment in glob.glob(fullglob):
+            found = glob.glob(os.path.join(assignment, self.coursedir.notebook_id + ".ipynb"))
             if len(found) == 0:
-                self.log.warning("No notebooks were matched by '%s'", notebook_glob)
+                self.log.warning("No notebooks were matched in '%s'", assignment)
                 continue
             self.assignments[assignment] = found
 
         if len(self.assignments) == 0:
-            msg = "No notebooks were matched by '%s'" % assignment_glob
+            msg = "No notebooks were matched by '%s'" % fullglob
             self.log.error(msg)
-
-            assignment_glob2 = self._format_source("*", self.coursedir.student_id)
-            found = glob.glob(assignment_glob2)
-            if found:
-                # Normally it is a bad idea to put imports in the middle of
-                # a function, but we do this here because otherwise fuzzywuzzy
-                # prints an annoying message about python-Levenshtein every
-                # time nbgrader is run.
-                from fuzzywuzzy import fuzz
-                scores = sorted([(fuzz.ratio(assignment_glob, x), x) for x in found])
-                self.log.error("Did you mean: %s", scores[-1][1])
-
             raise NbGraderException(msg)
 
     def init_single_notebook_resources(self, notebook_filename):
@@ -330,16 +316,6 @@ class BaseConverter(LoggingConfigurable):
                     "may occur if you recently upgraded nbgrader. To resolve "
                     "the issue, first BACK UP your database and then run the "
                     "command `nbgrader db upgrade`."
-                )
-                self.log.error(msg)
-                raise NbGraderException(msg)
-
-            except SchemaMismatchError:
-                _handle_failure(gd)
-                msg = (
-                    "One or more notebooks in the assignment use an old version \n"
-                    "of the nbgrader metadata format. Please **back up your class files \n"
-                    "directory** and then update the metadata using:\n\nnbgrader update .\n"
                 )
                 self.log.error(msg)
                 raise NbGraderException(msg)

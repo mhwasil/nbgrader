@@ -1,5 +1,3 @@
-# coding: utf-8
-
 from traitlets import default
 
 from .baseapp import NbGrader, nbgrader_aliases, nbgrader_flags
@@ -17,10 +15,6 @@ flags = {}
 flags.update(nbgrader_flags)
 flags.update({
     'force': (
-        {'ExchangeRelease' : {'force' : True}},
-        "Force overwrite of existing files in the exchange."
-    ),
-    'f': (
         {'ExchangeRelease' : {'force' : True}},
         "Force overwrite of existing files in the exchange."
     ),

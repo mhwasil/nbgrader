@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import traceback
 import glob
 
@@ -7,7 +5,6 @@ from traitlets import default
 
 from .baseapp import NbGrader
 from ..validator import Validator
-from ..nbgraderformat import SchemaMismatchError
 
 aliases = {}
 flags = {
@@ -45,7 +42,7 @@ class ValidateApp(NbGrader):
 
     def _load_config(self, cfg, **kwargs):
         if 'DisplayAutoGrades' in cfg:
-            self.log.warning(
+            self.log.warn(
                 "Use Validator in config, not DisplayAutoGrades. Outdated config:\n%s",
                 '\n'.join(
                     'DisplayAutoGrades.{key} = {value!r}'.format(key=key, value=value)
@@ -69,15 +66,6 @@ class ValidateApp(NbGrader):
         for filename in notebook_filenames:
             try:
                 validator.validate_and_print(filename)
-
-            except SchemaMismatchError:
-                self.log.error(traceback.format_exc())
-                self.fail((
-                    "The notebook '{}' uses an old version "
-                    "of the nbgrader metadata format. Please **back up this "
-                    "notebook** and then update the metadata using:\n\nnbgrader update {}\n"
-                ).format(filename, filename))
-
             except Exception:
                 self.log.error(traceback.format_exc())
                 self.fail("nbgrader encountered a fatal error while trying to validate '{}'".format(filename))

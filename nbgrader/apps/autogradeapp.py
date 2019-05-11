@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import sys
 
 from traitlets import default
@@ -27,10 +25,6 @@ flags.update({
         "Don't execute notebooks and clear output when autograding."
     ),
     'force': (
-        {'BaseConverter': {'force': True}},
-        "Overwrite an assignment/submission if it already exists."
-    ),
-    'f': (
         {'BaseConverter': {'force': True}},
         "Overwrite an assignment/submission if it already exists."
     ),

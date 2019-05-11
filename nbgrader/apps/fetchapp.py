@@ -1,5 +1,3 @@
-# coding: utf-8
-
 from traitlets import default
 
 from .baseapp import NbGrader, nbgrader_aliases, nbgrader_flags
@@ -75,26 +73,16 @@ class FetchApp(NbGrader):
     def start(self):
         super(FetchApp, self).start()
 
-        # set assignment and course
-        if len(self.extra_args) == 0 and self.coursedir.assignment_id == "":
+        # set assignemnt and course
+        if len(self.extra_args) == 1:
+            self.coursedir.assignment_id = self.extra_args[0]
+        elif len(self.extra_args) > 2:
+            self.fail("Too many arguments")
+        elif self.coursedir.assignment_id == "":
             self.fail("Must provide assignment name:\nnbgrader <command> ASSIGNMENT [ --course COURSE ]")
 
-        if self.coursedir.assignment_id != "":
-            fetch = ExchangeFetch(coursedir=self.coursedir, parent=self)
-            try:
-                fetch.start()
-            except ExchangeError:
-                self.fail("nbgrader fetch failed")
-        else:
-            failed = False
-
-            for arg in self.extra_args:
-                self.coursedir.assignment_id = arg
-                fetch = ExchangeFetch(coursedir=self.coursedir, parent=self)
-                try:
-                    fetch.start()
-                except ExchangeError:
-                    failed = True
-
-            if failed:
-                self.fail("nbgrader fetch failed")
+        fetch = ExchangeFetch(coursedir=self.coursedir, parent=self)
+        try:
+            fetch.start()
+        except ExchangeError:
+            self.fail("nbgrader fetch failed")

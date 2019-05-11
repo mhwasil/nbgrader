@@ -12,8 +12,6 @@ function FormGrader (base_url, submission_id) {
     this.comment_uis;
 
     this.keyboard_manager;
-
-    this.loaded = false;
 }
 
 FormGrader.prototype.init = function () {
@@ -73,8 +71,6 @@ FormGrader.prototype.init = function () {
         "keybinding": "control-shift-f",
         "help": "Flag the submission"
     });
-
-    this.loaded = true;
 };
 
 FormGrader.prototype.loadGrades = function () {

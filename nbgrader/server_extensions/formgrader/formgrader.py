@@ -1,16 +1,16 @@
-# coding: utf-8
-
 import os
 
+from copy import deepcopy
 from nbconvert.exporters import HTMLExporter
 from traitlets import default
 from tornado import web
 from jinja2 import Environment, FileSystemLoader
 from notebook.utils import url_path_join as ujoin
 
-from . import handlers, apihandlers
-from ...apps.baseapp import NbGrader
+from . import handlers, apihandlers, hbrs_handlers, hbrs_apihandlers
 
+from ...apps.baseapp import NbGrader
+from ...preprocessors.filtercellsbyid import FilterCellsById
 
 class FormgradeExtension(NbGrader):
 
@@ -27,17 +27,26 @@ class FormgradeExtension(NbGrader):
         extra_config = super(FormgradeExtension, self).build_extra_config()
         extra_config.HTMLExporter.template_file = 'formgrade'
         extra_config.HTMLExporter.template_path = [handlers.template_path]
+
+        # Update config to have the question preprocessor
+        extra_config.HTMLExporter.preprocessors = [FilterCellsById]
         return extra_config
 
     def init_tornado_settings(self, webapp):
         # Init jinja environment
         jinja_env = Environment(loader=FileSystemLoader([handlers.template_path]))
 
+        task_view_config = deepcopy(self.config)
+        task_view_config['HTMLExporter']['template_file'] = 'formgrade_taskview'
+
+
+
         # Configure the formgrader settings
         tornado_settings = dict(
             nbgrader_url_prefix=os.path.relpath(self.coursedir.root, self.parent.notebook_dir),
             nbgrader_coursedir=self.coursedir,
             nbgrader_exporter=HTMLExporter(config=self.config),
+            nbgrader_taskview_exporter=HTMLExporter(config=task_view_config),
             nbgrader_gradebook=None,
             nbgrader_db_url=self.coursedir.db_url,
             nbgrader_jinja2_env=jinja_env,
@@ -49,6 +58,9 @@ class FormgradeExtension(NbGrader):
         h = []
         h.extend(handlers.default_handlers)
         h.extend(apihandlers.default_handlers)
+				# Register our custom handlers
+        h.extend(hbrs_handlers.default_handlers)
+        h.extend(hbrs_apihandlers.default_handlers)
         h.extend([
             (r"/formgrader/static/(.*)", web.StaticFileHandler, {'path': handlers.static_path}),
             (r"/formgrader/.*", handlers.Template404)

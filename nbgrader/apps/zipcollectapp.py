@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import os
 import six
 import sys
@@ -29,13 +27,6 @@ flags = {
         "set log level to DEBUG (maximize logging output)"
     ),
     'force': (
-        {
-            'ZipCollectApp': {'force': True},
-            'ExtractorPlugin': {'force': True}
-        },
-        "Force overwrite of existing files."
-    ),
-    'f': (
         {
             'ZipCollectApp': {'force': True},
             'ExtractorPlugin': {'force': True}

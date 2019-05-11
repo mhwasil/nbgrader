@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import sys
 
 from traitlets import default
@@ -16,10 +14,6 @@ flags = {}
 flags.update(nbgrader_flags)
 flags.update({
     'force': (
-        {'BaseConverter': {'force': True}},
-        "Overwrite an assignment/submission if it already exists."
-    ),
-    'f': (
         {'BaseConverter': {'force': True}},
         "Overwrite an assignment/submission if it already exists."
     ),

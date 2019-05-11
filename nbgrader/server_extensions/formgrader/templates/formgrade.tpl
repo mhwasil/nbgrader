@@ -1,6 +1,5 @@
 {%- extends 'basic.tpl' -%}
 {% from 'formgrade_macros.tpl' import nav, header %}
-{% from 'mathjax.tpl' import mathjax %}
 
 {%- block header -%}
 <!DOCTYPE html>
@@ -14,8 +13,26 @@
     </style>
 {% endfor %}
 
-<!-- Loading mathjax macro -->
-{{ mathjax( resources.base_url + '/' + resources.mathjax_url + '?config=TeX-AMS-MML_HTMLorMML-full') }}
+<!-- MathJax -->
+<script type="text/javascript">
+window.MathJax = {
+    tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+        processEscapes: true,
+        processEnvironments: true
+    },
+    // Center justify equations in code and markdown cells. Elsewhere
+    // we use CSS to left justify single line equations in code cells.
+    displayAlign: 'center',
+    "HTML-CSS": {
+        styles: {'.MathJax_Display': {"margin": 0}},
+        linebreaks: { automatic: true }
+    }
+};
+</script>
+
+<script type="text/javascript" src="{{ resources.base_url }}/{{ resources.mathjax_url }}?config=TeX-AMS-MML_HTMLorMML-full"></script>
 
 <link rel="stylesheet" href="{{ resources.base_url }}/formgrader/static/css/formgrade.css" />
 
@@ -71,14 +88,10 @@
 
 {% macro nbgrader_heading(cell) -%}
 <div class="panel-heading">
-{%- if cell.metadata.nbgrader.solution or cell.metadata.nbgrader.task -%}
-  {%- if cell.metadata.nbgrader.task -%}
-  <span class="nbgrader-label">Student's task</span>
-  {%- else -%}
+{%- if cell.metadata.nbgrader.solution -%}
   <span class="nbgrader-label">Student's answer</span>
-  {%- endif -%}
   <span class="glyphicon glyphicon-ok comment-saved save-icon"></span>
-  {%- if cell.metadata.nbgrader.grade or cell.metadata.nbgrader.task  -%}
+  {%- if cell.metadata.nbgrader.grade -%}
   {{ score(cell) }}
   {%- endif -%}
 {%- elif cell.metadata.nbgrader.grade -%}
@@ -89,7 +102,7 @@
 {%- endmacro %}
 
 {% macro nbgrader_footer(cell) -%}
-{%- if cell.metadata.nbgrader.solution or cell.metadata.nbgrader.task -%}
+{%- if cell.metadata.nbgrader.solution -%}
 <div class="panel-footer">
   <div><textarea id="{{ cell.metadata.nbgrader.grade_id }}-comment" class="comment tabbable"></textarea></div>
 </div>
@@ -100,7 +113,7 @@
 <div class="cell border-box-sizing text_cell rendered">
   {{ self.empty_in_prompt() }}
 
-  {%- if 'nbgrader' in cell.metadata and (cell.metadata.nbgrader.solution or cell.metadata.nbgrader.grade or cell.metadata.nbgrader.task ) -%}
+  {%- if 'nbgrader' in cell.metadata and (cell.metadata.nbgrader.solution or cell.metadata.nbgrader.grade) -%}
   <div class="panel panel-primary nbgrader_cell">
     {{ nbgrader_heading(cell) }}
     <div class="panel-body">
@@ -125,7 +138,7 @@
 {% endblock markdowncell %}
 
 {% block input %}
-  {%- if 'nbgrader' in cell.metadata and (cell.metadata.nbgrader.solution or cell.metadata.nbgrader.grade or cell.metadata.nbgrader.task) -%}
+  {%- if 'nbgrader' in cell.metadata and (cell.metadata.nbgrader.solution or cell.metadata.nbgrader.grade) -%}
   <div class="panel panel-primary nbgrader_cell">
     {{ nbgrader_heading(cell) }}
     <div class="panel-body">

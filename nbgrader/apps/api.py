@@ -10,9 +10,9 @@ from traitlets import Instance, Enum, Unicode, observe
 
 from ..coursedir import CourseDirectory
 from ..converters import Assign, Autograde
-from ..exchange import ExchangeList, ExchangeRelease, ExchangeCollect, ExchangeError, ExchangeSubmit
-from ..api import MissingEntry, Gradebook, Student, SubmittedAssignment
-from ..utils import parse_utc, temp_attrs, capture_log, as_timezone, to_numeric_tz
+from ..exchange import ExchangeList, ExchangeRelease, ExchangeCollect, ExchangeError
+from ..api import MissingEntry, Gradebook, Student, SubmittedAssignment, SolutionCell, GradeCell, Grade, SubmittedNotebook
+from ..utils import parse_utc, temp_attrs, capture_log, as_timezone
 
 
 class NbGraderAPI(LoggingConfigurable):
@@ -265,6 +265,145 @@ class NbGraderAPI(LoggingConfigurable):
 
         return students
 
+    def get_solution_cell_ids(self, assignment_id, notebook_id):
+        """Get information about the solution cells of a notebook
+        given its name.
+
+        Arguments
+        ---------
+        assignment_id: string
+            The name of the assignment
+        notebook_id: string
+            The name of the notebook
+
+        Returns
+        -------
+        solution_cells: dict
+            A dictionary containing information about the solution cells
+
+        """
+        solution_cells = []
+        with self.gradebook as gb:
+            notebook_id = gb.find_notebook(notebook_id, assignment_id).id
+            for cell_id, cell_name in gb.db.query(SolutionCell.id, SolutionCell.name):
+                autograded = 0
+                grade_cell = gb.db.query(GradeCell.id, GradeCell.max_score)\
+                    .filter((GradeCell.name == cell_name)\
+                            ,(GradeCell.notebook_id == notebook_id)) \
+                    .first()
+                if grade_cell == None:
+                    autograded = 1
+                    grade_cell = gb.db.query(GradeCell.id, GradeCell.max_score)\
+                    .filter((GradeCell.name == "test_{}".format(cell_name)) \
+                            ,(GradeCell.notebook_id == notebook_id)) \
+                    .first()
+                if grade_cell == None:
+                    continue
+                avg_score = 0
+                needs_grading = 0
+                i = 0
+                for manual_score, auto_score, needs_manual_grade in gb.db\
+                        .query(Grade.manual_score, Grade.auto_score,\
+                        Grade.needs_manual_grade)\
+                        .filter(Grade.cell_id == grade_cell[0]):
+                    needs_grading = max(needs_manual_grade, needs_grading)
+                    if manual_score:
+                        avg_score += manual_score
+                    elif auto_score:
+                        avg_score += auto_score
+                    i += 1
+
+                if needs_grading:
+                    needs_grading = 1
+                else:
+                    needs_grading = 0
+
+                solution_cell = {
+                    "id": cell_id,
+                    "name": cell_name,
+                    "grade_id": grade_cell[0],
+                    "max_score": grade_cell[1],
+                    "autograded": autograded,
+                    "avg_score": avg_score/i,
+                    "needs_manual_grade": needs_grading
+                }
+
+                solution_cells.append(solution_cell)
+
+
+        return solution_cells
+
+    def get_grade_cell(self, notebook_id, solution_cell_name):
+        with self.gradebook as gb:            
+            grade_cell = gb.db.query(GradeCell.id, GradeCell.name, GradeCell.max_score)\
+                .filter(GradeCell.notebook_id == notebook_id, GradeCell.name == solution_cell_name).first()
+            if grade_cell is None:
+                grade_cell = gb.db.query(GradeCell.id, GradeCell.name, GradeCell.max_score)\
+                .filter(GradeCell.notebook_id == notebook_id, GradeCell.name == 'test_{}'.format(solution_cell_name)).first()
+            return grade_cell
+
+    def get_task_submissions(self, assignment_id, notebook_id, task_id):
+        """Get a list of submissions for a particular notebook in an assignment.
+
+        Arguments
+        ---------
+        assignment_id: string
+            The name of the assignment
+        notebook_id: string
+            The name of the notebook
+        task_id: string
+            The name of the solution cell
+
+        Returns
+        -------
+        submissions: list
+            A list of dictionaries containing information about each submission.
+
+        """
+        with self.gradebook as gb:
+            try:
+                notebook_uid = gb.find_notebook(notebook_id, assignment_id).id
+                grade_id = self.get_grade_cell(notebook_uid, task_id)[0]
+            except MissingEntry:
+                return []
+            except TypeError:
+                return []
+
+            query = gb.db.query(SubmittedNotebook.id, Grade, Student, GradeCell)\
+                .join(SubmittedAssignment, SubmittedNotebook.assignment_id == SubmittedAssignment.id)\
+                .join(Grade, Grade.notebook_id == SubmittedNotebook.id)\
+                .join(Student, Student.id == SubmittedAssignment.student_id)\
+                .join(GradeCell, GradeCell.id == Grade.cell_id)\
+                .filter(Grade.cell_id == grade_id)\
+                .all()
+
+        submissions = []
+        idx = 0
+        for submission_id, grade, student, grade_cell in query:
+            score = 0
+            tests_failed = False
+            if grade.manual_score != None:
+                score = grade.manual_score
+            elif grade.auto_score != None:
+                score = grade.auto_score
+                tests_failed = score < grade_cell.max_score
+            submission = {
+                "id": submission_id,
+                "student": student.id,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+                "score": score,
+                "max_score": grade_cell.max_score,
+                "needs_manual_grade": grade.needs_manual_grade,
+                "tests_failed": tests_failed,
+                "index": idx        
+            }
+            submissions.append(submission)
+            idx += 1
+
+
+        return submissions
+
     def get_assignment(self, assignment_id, released=None):
         """Get information about an assignment given its name.
 
@@ -306,11 +445,10 @@ class NbGraderAPI(LoggingConfigurable):
                 else:
                     assignment["display_duedate"] = None
                     assignment["duedate_notimezone"] = None
-                assignment["duedate_timezone"] = to_numeric_tz(self.timezone)
+                assignment["duedate_timezone"] = self.timezone
                 assignment["average_score"] = gb.average_assignment_score(assignment_id)
                 assignment["average_code_score"] = gb.average_assignment_code_score(assignment_id)
                 assignment["average_written_score"] = gb.average_assignment_written_score(assignment_id)
-                assignment["average_task_score"] = gb.average_assignment_task_score(assignment_id)
 
         except MissingEntry:
             assignment = {
@@ -319,15 +457,13 @@ class NbGraderAPI(LoggingConfigurable):
                 "duedate": None,
                 "display_duedate": None,
                 "duedate_notimezone": None,
-                "duedate_timezone": to_numeric_tz(self.timezone),
+                "duedate_timezone": self.timezone,
                 "average_score": 0,
                 "average_code_score": 0,
                 "average_written_score": 0,
-                "average_task_score": 0,
                 "max_score": 0,
                 "max_code_score": 0,
-                "max_written_score": 0,
-                "max_task_score": 0
+                "max_written_score": 0
             }
 
         # get released status
@@ -405,7 +541,6 @@ class NbGraderAPI(LoggingConfigurable):
                     x["average_score"] = gb.average_notebook_score(notebook.name, assignment.name)
                     x["average_code_score"] = gb.average_notebook_code_score(notebook.name, assignment.name)
                     x["average_written_score"] = gb.average_notebook_written_score(notebook.name, assignment.name)
-                    x["average_task_score"] = gb.average_notebook_task_score(notebook.name, assignment.name)
                     notebooks.append(x)
 
             # if it doesn't exist in the database
@@ -431,11 +566,9 @@ class NbGraderAPI(LoggingConfigurable):
                         "average_score": 0,
                         "average_code_score": 0,
                         "average_written_score": 0,
-                        "average_task_score": 0,
                         "max_score": 0,
                         "max_code_score": 0,
                         "max_written_score": 0,
-                        "max_task_score": 0,
                         "needs_manual_grade": False,
                         "num_submissions": 0
                     })
@@ -490,8 +623,6 @@ class NbGraderAPI(LoggingConfigurable):
                 "max_code_score": 0.0,
                 "written_score": 0.0,
                 "max_written_score": 0.0,
-                "task_score": 0.0,
-                "max_task_score": 0.0,
                 "needs_manual_grade": False,
                 "autograded": False,
                 "submitted": True,
@@ -534,8 +665,6 @@ class NbGraderAPI(LoggingConfigurable):
                 "max_code_score": 0.0,
                 "written_score": 0.0,
                 "max_written_score": 0.0,
-                "task_score": 0.0,
-                "max_task_score": 0.0,
                 "needs_manual_grade": False,
                 "autograded": False,
                 "submitted": False,
@@ -568,7 +697,6 @@ class NbGraderAPI(LoggingConfigurable):
         """
         with self.gradebook as gb:
             db_submissions = gb.submission_dicts(assignment_id)
-
         ungraded = self.get_submitted_students(assignment_id) - self.get_autograded_students(assignment_id)
         students = {x['id']: x for x in self.get_students()}
         submissions = []
@@ -615,19 +743,6 @@ class NbGraderAPI(LoggingConfigurable):
             List of :class:`~nbgrader.api.SubmittedNotebook` objects
 
         """
-        # Making a filesystem call for every notebook in the assignment
-        # can be very slow on certain setups, such as using NFS, see
-        # https://github.com/jupyter/nbgrader/issues/929
-        #
-        # If students are using the exchange and submitting with
-        # ExchangeSubmit.strict == True, then all the notebooks we expect
-        # should be here already so we don't need to filter for only
-        # existing notebooks in that case.
-        if self.exchange_is_functional:
-            app = ExchangeSubmit(coursedir=self.coursedir, parent=self)
-            if app.strict:
-                return sorted(notebooks, key=lambda x: x.id)
-
         submissions = list()
         for nb in notebooks:
             filename = os.path.join(
@@ -834,8 +949,6 @@ class NbGraderAPI(LoggingConfigurable):
                         "max_code_score": notebook.max_code_score,
                         "written_score": 0,
                         "max_written_score": notebook.max_written_score,
-                        "task_score": 0,
-                        "max_task_score": notebook.max_task_score,
                         "needs_manual_grade": False,
                         "failed_tests": False,
                         "flagged": False

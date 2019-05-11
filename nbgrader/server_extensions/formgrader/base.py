@@ -44,6 +44,10 @@ class BaseHandler(IPythonHandler):
         return self.settings['nbgrader_exporter']
 
     @property
+    def taskview_exporter(self):
+        return self.settings['nbgrader_taskview_exporter']
+
+    @property
     def api(self):
         level = self.log.level
         api = NbGraderAPI(self.coursedir, parent=self.coursedir.parent)

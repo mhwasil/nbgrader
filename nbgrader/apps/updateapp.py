@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import os
 import traceback
 
@@ -7,7 +5,7 @@ from nbformat import current_nbformat, read as orig_read, write as orig_write
 from traitlets import Bool
 
 from .baseapp import NbGrader
-from ..nbgraderformat import MetadataValidator, write, ValidationError
+from ..nbgraderformat import Validator, write, ValidationError
 from ..utils import find_all_notebooks
 
 aliases = {
@@ -55,10 +53,7 @@ class UpdateApp(NbGrader):
         super(UpdateApp, self).start()
 
         if len(self.extra_args) < 1:
-            self.fail(
-                "No notebooks or directories given. Usage:\n\n"
-                "nbgrader update <NOTEBOOK>\n"
-                "nbgrader update <DIRECTORY>\n")
+            self.fail("No notebooks given")
 
         notebooks = set()
         for name in self.extra_args:
@@ -75,7 +70,7 @@ class UpdateApp(NbGrader):
         for notebook in notebooks:
             self.log.info("Updating metadata for notebook: {}".format(notebook))
             nb = orig_read(notebook, current_nbformat)
-            nb = MetadataValidator().upgrade_notebook_metadata(nb)
+            nb = Validator().upgrade_notebook_metadata(nb)
             if self.validate:
                 try:
                     write(nb, notebook)

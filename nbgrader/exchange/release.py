@@ -50,9 +50,7 @@ class ExchangeRelease(Exchange):
                 self.fail("Assignment found in '{}' but not '{}', run `nbgrader assign` first.".format(
                     source, self.src_path))
             else:
-                self._assignment_not_found(
-                    self.src_path,
-                    self.coursedir.format_path(self.coursedir.release_directory, '.', '*'))
+                self.fail("Assignment not found: {}".format(self.src_path))
 
     def init_dest(self):
         if self.course_id == '':

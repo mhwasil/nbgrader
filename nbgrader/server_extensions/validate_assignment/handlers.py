@@ -14,7 +14,6 @@ from jupyter_core.paths import jupyter_config_path
 
 from ...apps import NbGrader
 from ...validator import Validator
-from ...nbgraderformat import SchemaMismatchError
 from ... import __version__ as nbgrader_version
 
 
@@ -43,25 +42,10 @@ class ValidateAssignmentHandler(IPythonHandler):
         return full_config
 
     def validate_notebook(self, path):
-        fullpath = os.path.join(self.notebook_dir, path)
-
         try:
             config = self.load_config()
             validator = Validator(config=config)
-            result = validator.validate(fullpath)
-
-        except SchemaMismatchError:
-            self.log.error(traceback.format_exc())
-            msg = (
-                "The notebook '{}' uses an old version "
-                "of the nbgrader metadata format. Please **back up this "
-                "notebook** and then update the metadata using:\n\nnbgrader update {}\n"
-            ).format(fullpath, fullpath)
-            self.log.error(msg)
-            retvalue = {
-                "success": False,
-                "value": msg
-            }
+            result = validator.validate(os.path.join(self.notebook_dir, path))
 
         except:
             self.log.error(traceback.format_exc())

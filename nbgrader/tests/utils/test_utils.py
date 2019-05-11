@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import os
 import pytest
 import tempfile
@@ -272,34 +270,18 @@ def test_is_ignored(temp_cwd):
 
 
 def test_find_all_files(temp_cwd):
-    os.makedirs(join("foo", "bar", "quux"))
+    os.makedirs(join("foo", "bar"))
     with open(join("foo", "baz.txt"), "w") as fh:
         fh.write("baz")
     with open(join("foo", "bar", "baz.txt"), "w") as fh:
         fh.write("baz")
-    with open(join("foo", "bar", "quux", "baz.txt"), "w") as fh:
-        fh.write("baz")
 
-    assert utils.find_all_files("foo") == [
-        join("foo", "baz.txt"),
-        join("foo", "bar", "baz.txt"),
-        join("foo", "bar", "quux", "baz.txt")]
+    assert utils.find_all_files("foo") == [join("foo", "baz.txt"), join("foo", "bar", "baz.txt")]
     assert utils.find_all_files("foo", ["bar"]) == [join("foo", "baz.txt")]
-    assert utils.find_all_files("foo", ["quux"]) == [
-        join("foo", "baz.txt"),
-        join("foo", "bar", "baz.txt")]
-    assert utils.find_all_files(join("foo", "bar")) == [
-        join("foo", "bar", "baz.txt"),
-        join("foo", "bar", "quux", "baz.txt")]
+    assert utils.find_all_files(join("foo", "bar")) == [join("foo", "bar", "baz.txt")]
     assert utils.find_all_files(join("foo", "bar"), ["*.txt"]) == []
-    assert utils.find_all_files(".") == [
-        join(".", "foo", "baz.txt"),
-        join(".", "foo", "bar", "baz.txt"),
-        join(".", "foo", "bar", "quux", "baz.txt")]
+    assert utils.find_all_files(".") == [join(".", "foo", "baz.txt"), join(".", "foo", "bar", "baz.txt")]
     assert utils.find_all_files(".", ["bar"]) == [join(".", "foo", "baz.txt")]
-    assert utils.find_all_files(".", ["quux"]) == [
-        join(".", "foo", "baz.txt"),
-        join(".", "foo", "bar", "baz.txt")]
 
 
 def test_unzip_invalid_ext(temp_cwd):

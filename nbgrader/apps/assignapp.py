@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import sys
 
 from traitlets import default
@@ -27,7 +25,6 @@ flags.update({
         {
             'ClearSolutions': {'enforce_metadata': False},
             'ClearHiddenTests': {'enforce_metadata': False},
-            'ClearMarkScheme': {'enforce_metadata': False},
             'CheckCellMetadata': {'enabled': False},
             'ComputeChecksums': {'enabled': False}
         },
@@ -38,10 +35,6 @@ flags.update({
         "Create an entry for the assignment in the database, if one does not already exist."
     ),
     'force': (
-        {'BaseConverter': {'force': True}},
-        "Overwrite an assignment/submission if it already exists."
-    ),
-    'f': (
         {'BaseConverter': {'force': True}},
         "Overwrite an assignment/submission if it already exists."
     ),

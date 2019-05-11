@@ -1,5 +1,3 @@
-# coding: utf-8
-
 from traitlets import Type, Instance, default
 from .baseapp import NbGrader
 from ..plugins import ExportPlugin, CsvExportPlugin

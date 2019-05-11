@@ -7,7 +7,7 @@ define([
 ], function ($, Jupyter, dialog, utils) {
     "use strict";
 
-    var nbgrader_version = "0.6.0.dev";
+    var nbgrader_version = "0.5.4";
 
     var ajax = utils.ajax || $.ajax;
     // Notebook v4.3.1 enabled xsrf so use notebooks ajax that includes the
@@ -85,14 +85,7 @@ define([
             } else {
                 data = data.value;
             }
-            if (data.type_changed !== undefined) {
-                for (var i=0; i<data.type_changed.length; i++) {
-                    body.append($('<div/>').append($('<p/>').text('The following ' + data.type_changed[i].old_type + ' cell has changed to a ' + data.type_changed[i].new_type + ' cell, but it should not have!')));
-                    body.append($('<pre/>').text(data.type_changed[i].source));
-                }
-                body.addClass("validation-type-changed");
-
-            } else if (data.changed !== undefined) {
+            if (data.changed !== undefined) {
                 for (var i=0; i<data.changed.length; i++) {
                     body.append($('<div/>').append($('<p/>').text('The source of the following cell has changed, but it should not have!')));
                     body.append($('<pre/>').text(data.changed[i].source));

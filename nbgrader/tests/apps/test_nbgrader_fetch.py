@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-import io
 import os
 from os.path import join
 
@@ -13,7 +10,7 @@ from .conftest import notwindows
 class TestNbGraderFetch(BaseTestApp):
 
     def _release(self, assignment, exchange, course_dir, course="abc101"):
-        self._copy_file(join("files", "test.ipynb"), join(course_dir, "release", assignment, "p1.ipynb"))
+        self._copy_file(join("files", "test.ipynb"), join(course_dir, "release", "ps1", "p1.ipynb"))
         run_nbgrader([
             "release", assignment,
             "--course", course,
@@ -26,19 +23,6 @@ class TestNbGraderFetch(BaseTestApp):
             "--course", course,
             "--Exchange.root={}".format(exchange)
         ]
-
-        if flags is not None:
-            cmd.extend(flags)
-
-        run_nbgrader(cmd, retcode=retcode)
-
-    def _fetch_multi(self, assignments, exchange, flags=None, retcode=0, course="abc101"):
-        cmd = [
-            "fetch",
-            "--course", course,
-            "--Exchange.root={}".format(exchange)
-        ]
-        cmd.extend(assignments)
 
         if flags is not None:
             cmd.extend(flags)
@@ -76,10 +60,10 @@ class TestNbGraderFetch(BaseTestApp):
 
         # make sure the --replace flag doesn't overwrite files, though
         self._copy_file(join("files", "submitted-changed.ipynb"), join("ps1", "p1.ipynb"))
-        with io.open(join("ps1", "p1.ipynb"), mode="r", encoding='utf-8') as fh:
+        with open(join("ps1", "p1.ipynb"), "r") as fh:
             contents1 = fh.read()
         self._fetch("ps1", exchange, flags=["--replace"])
-        with io.open(join("ps1", "p1.ipynb"), mode="r", encoding='utf-8') as fh:
+        with open(join("ps1", "p1.ipynb"), "r") as fh:
             contents2 = fh.read()
         assert contents1 == contents2
 
@@ -96,11 +80,3 @@ class TestNbGraderFetch(BaseTestApp):
         self._release("ps1", exchange, course_dir, course="abc102")
         self._fetch("ps1", exchange, course="abc102", flags=["--Exchange.path_includes_course=True"])
         assert os.path.isfile(join("abc102", "ps1", "p1.ipynb"))
-
-    def test_fetch_multiple_assignments(self, exchange, course_dir):
-        self._release("ps1", exchange, course_dir, course="abc101")
-
-        self._release("ps2", exchange, course_dir, course="abc101")
-        self._fetch_multi(["ps1", "ps2"], exchange, course="abc101", flags=["--Exchange.path_includes_course=True"])
-        assert os.path.isfile(join("abc101", "ps1", "p1.ipynb"))
-        assert os.path.isfile(join("abc101", "ps2", "p1.ipynb"))

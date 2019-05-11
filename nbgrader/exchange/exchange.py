@@ -2,14 +2,12 @@ import os
 import datetime
 import sys
 import shutil
-import glob
 
 from textwrap import dedent
 
 from dateutil.tz import gettz
-from dateutil import tz
 from traitlets.config import LoggingConfigurable
-from traitlets import Unicode, Bool, Instance, default, validate
+from traitlets import Unicode, Bool, Instance, default
 from jupyter_core.paths import jupyter_data_dir
 
 from ..utils import check_directory
@@ -32,12 +30,6 @@ class Exchange(LoggingConfigurable):
             """
         )
     ).tag(config=True)
-
-    @validate('course_id')
-    def _validate_course_id(self, proposal):
-        if proposal['value'].strip() != proposal['value']:
-            self.log.warning("course_id '%s' has trailing whitespace, stripping it away", proposal['value'])
-        return proposal['value'].strip()
 
     timezone = Unicode(
         "UTC",
@@ -87,13 +79,10 @@ class Exchange(LoggingConfigurable):
 
     def set_timestamp(self):
         """Set the timestap using the configured timezone."""
-        # Use UTC timezon
-        #tz_utc = gettz(self.timezone)
-        # Use local time zone
-        tz_local = tz.tzlocal()
+        tz = gettz(self.timezone)
         if tz is None:
             self.fail("Invalid timezone: {}".format(self.timezone))
-        self.timestamp = datetime.datetime.now(tz_local).strftime(self.timestamp_format)
+        self.timestamp = datetime.datetime.now(tz).strftime(self.timestamp_format)
 
     def set_perms(self, dest, fileperms, dirperms):
         all_dirs = []
@@ -136,18 +125,3 @@ class Exchange(LoggingConfigurable):
         self.init_src()
         self.init_dest()
         self.copy_files()
-
-    def _assignment_not_found(self, src_path, other_path):
-        msg = "Assignment not found at: {}".format(src_path)
-        self.log.fatal(msg)
-        found = glob.glob(other_path)
-        if found:
-            # Normally it is a bad idea to put imports in the middle of
-            # a function, but we do this here because otherwise fuzzywuzzy
-            # prints an annoying message about python-Levenshtein every
-            # time nbgrader is run.
-            from fuzzywuzzy import fuzz
-            scores = sorted([(fuzz.ratio(self.src_path, x), x) for x in found])
-            self.log.error("Did you mean: %s", scores[-1][1])
-
-        raise ExchangeError(msg)

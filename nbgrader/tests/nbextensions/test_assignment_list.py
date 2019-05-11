@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-
 import pytest
-import io
 import os
 import shutil
 import time
@@ -31,7 +28,7 @@ def nbserver(request, port, tempdir, jupyter_config_dir, jupyter_data_dir, excha
     return server
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def browser(request, tempdir, nbserver):
     browser = _make_browser(tempdir)
 
@@ -56,7 +53,7 @@ def class_files(coursedir):
 
     # create a fake ps1
     os.mkdir(os.path.join(coursedir, "source", "ps.01"))
-    with io.open(os.path.join(coursedir, "source", "ps.01", "problem 1.ipynb"), mode="w", encoding="utf-8") as fh:
+    with open(os.path.join(coursedir, "source", "ps.01", "problem 1.ipynb"), "w") as fh:
         write_nb(new_notebook(), fh, 4)
 
     with open("nbgrader_config.py", "a") as fh:
@@ -107,7 +104,7 @@ def _load_assignments_list(browser, port, retries=5):
 
 
 def _expand(browser, list_id, assignment):
-    browser.find_element_by_id("fetched_assignments_list").find_element_by_link_text(assignment).click()
+    browser.find_element_by_link_text(assignment).click()
     rows = browser.find_elements_by_css_selector("{} .list_item".format(list_id))
     for i in range(1, len(rows)):
         _wait(browser).until(lambda browser: browser.find_elements_by_css_selector("{} .list_item".format(list_id))[i].is_displayed())

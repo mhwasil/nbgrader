@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# coding: utf-8
+# encoding: utf-8
 
 import csv
 import os
@@ -30,8 +30,8 @@ student_add_aliases.update({
 
 class DbStudentAddApp(NbGrader):
 
-    name = u'nbgrader-db-student-add'
-    description = u'Add a student to the nbgrader database'
+    name = 'nbgrader-db-student-add'
+    description = 'Add a student to the nbgrader database'
 
     aliases = student_add_aliases
     flags = flags
@@ -78,16 +78,12 @@ student_remove_flags.update({
         {'DbStudentRemoveApp': {'force': True}},
         "Complete the operation, even if it means grades will be deleted."
     ),
-    'f': (
-        {'DbStudentRemoveApp': {'force': True}},
-        "Complete the operation, even if it means grades will be deleted."
-    ),
 })
 
 class DbStudentRemoveApp(NbGrader):
 
-    name = u'nbgrader-db-student-remove'
-    description = u'Remove a student from the nbgrader database'
+    name = 'nbgrader-db-student-remove'
+    description = 'Remove a student from the nbgrader database'
 
     aliases = aliases
     flags = student_remove_flags
@@ -126,48 +122,19 @@ class DbGenericImportApp(NbGrader):
     flags = flags
 
     expected_keys = List(help="These are the keys expected by the database")
-    excluded_keys = List([], help=dedent(
-        """
-        These are the column names in database table that should not be
-        imported via a csv file.
-        """).strip())
 
     def db_update_method_name(self):
         """
         Name of the update method used on the Gradebook for this import app.
-
-        Arguments
-        ---------
-        instance_id: string
-            Identifies which instance you are updating based on self.primary_key
-        instance: dictionary
-            Contents for the update from the parsed csv rows; unpacked as kwargs
-
+        It is expected to have the signature:
+            * instance_id : string, identifies which instance you are updating based on self.primary_key
+            * instance : dictionary, contents for the update from the parsed csv rows; unpacked as kwargs
         """
         raise NotImplementedError
 
-    name = u""
-    description = u""
+    name = ""
+    description = ""
 
-
-    @default('examples')
-    def examples_default(self):
-        keys = [x for x in self.expected_keys if
-                not(x == self.primary_key
-                or x in self.excluded_keys)]
-        example_string = dedent(
-            """
-            This command imports a CSV file into the database. The columns of
-            the CSV file must match the names of the columns in the database.
-            All columns are optional, except the columns corresponding to the
-            unique identifier of the {}. The keys/column names that are
-            expected are the following:
-
-              - {} (required)
-            """.format(self.table_class.__name__, self.primary_key)).strip()
-        for key in keys:
-            example_string += "\n  - {}".format(key)
-        return example_string
 
     @property
     def table_class(self):
@@ -242,8 +209,8 @@ class DbGenericImportApp(NbGrader):
 
 class DbStudentImportApp(DbGenericImportApp):
 
-    name = u'nbgrader-db-student-import'
-    description = u'Import students into the nbgrader database from a CSV file'
+    name = 'nbgrader-db-student-import'
+    description = 'Import students into the nbgrader database from a CSV file'
 
     @property
     def table_class(self):
@@ -260,8 +227,8 @@ class DbStudentImportApp(DbGenericImportApp):
 
 class DbStudentListApp(NbGrader):
 
-    name = u'nbgrader-db-student-list'
-    description = u'List students in the nbgrader database'
+    name = 'nbgrader-db-student-list'
+    description = 'List students in the nbgrader database'
 
     aliases = aliases
     flags = flags
@@ -283,8 +250,8 @@ assignment_add_aliases.update({
 
 class DbAssignmentAddApp(NbGrader):
 
-    name = u'nbgrader-db-assignment-add'
-    description = u'Add an assignment to the nbgrader database'
+    name = 'nbgrader-db-assignment-add'
+    description = 'Add an assignment to the nbgrader database'
 
     aliases = assignment_add_aliases
     flags = flags
@@ -318,16 +285,12 @@ assignment_remove_flags.update({
         {'DbAssignmentRemoveApp': {'force': True}},
         "Complete the operation, even if it means grades will be deleted."
     ),
-    'f': (
-        {'DbAssignmentRemoveApp': {'force': True}},
-        "Complete the operation, even if it means grades will be deleted."
-    ),
 })
 
 class DbAssignmentRemoveApp(NbGrader):
 
-    name = u'nbgrader-db-assignment-remove'
-    description = u'Remove an assignment from the nbgrader database'
+    name = 'nbgrader-db-assignment-remove'
+    description = 'Remove an assignment from the nbgrader database'
 
     aliases = aliases
     flags = assignment_remove_flags
@@ -362,12 +325,8 @@ class DbAssignmentRemoveApp(NbGrader):
 
 class DbAssignmentImportApp(DbGenericImportApp):
 
-    name = u'nbgrader-db-assignment-import'
-    description = u'Import assignments into the nbgrader database from a CSV file'
-
-    def __init__(self, *args, **kwargs):
-        super(DbAssignmentImportApp, self).__init__(*args, **kwargs)
-        self.excluded_keys = ["id"]
+    name = 'nbgrader-db-assignment-import'
+    description = 'Import assignments into the nbgrader database from a CSV file'
 
     @property
     def table_class(self):
@@ -383,8 +342,8 @@ class DbAssignmentImportApp(DbGenericImportApp):
 
 class DbAssignmentListApp(NbGrader):
 
-    name = u'nbgrader-db-assignment-list'
-    description = u'List assignments int the nbgrader database'
+    name = 'nbgrader-db-assignment-list'
+    description = 'List assignments int the nbgrader database'
 
     aliases = aliases
     flags = flags
@@ -402,7 +361,7 @@ class DbAssignmentListApp(NbGrader):
 
 class DbStudentApp(NbGrader):
 
-    name = u'nbgrader-db-student'
+    name = 'nbgrader-db-student'
     description = u'Modify or list students in the nbgrader database'
 
     subcommands = {
@@ -435,7 +394,7 @@ class DbStudentApp(NbGrader):
 
 class DbAssignmentApp(NbGrader):
 
-    name = u'nbgrader-db-assignment'
+    name = 'nbgrader-db-assignment'
     description = u'Modify or list assignments in the nbgrader database'
 
     subcommands = {
@@ -470,7 +429,7 @@ class DbAssignmentApp(NbGrader):
 class DbUpgradeApp(NbGrader):
     """Based on the `jupyterhub upgrade-db` command found in jupyterhub.app.UpgradeDB"""
 
-    name = u'nbgrader-db-upgrade'
+    name = 'nbgrader-db-upgrade'
     description = u'Upgrade the database schema to the latest version'
 
     def _backup_db_file(self, db_file):
@@ -498,7 +457,7 @@ class DbUpgradeApp(NbGrader):
 
 class DbApp(NbGrader):
 
-    name = u'nbgrader-db'
+    name = 'nbgrader-db'
     description = u'Perform operations on the nbgrader database'
 
     subcommands = dict(

@@ -12,7 +12,6 @@ define([
     var nbgrader_preset_name = "Create Assignment";
     var nbgrader_highlight_cls = "nbgrader-highlight";
     var nbgrader_cls = "nbgrader-cell";
-    var nbgrader_schema_version = 3;
     var warning;
 
     var CellToolbar = celltoolbar.CellToolbar;
@@ -37,9 +36,6 @@ define([
 
     // show the total points when the preset is activated
     events.on('preset_activated.CellToolbar', function(evt, preset) {
-        validate_schema_version();
-        clear_cell_types();
-
         var elem = $("#nbgrader-total-points-group");
         if (preset.name === nbgrader_preset_name) {
             if (elem.length == 0) {
@@ -100,7 +96,7 @@ define([
         var total_points = 0;
         var cells = Jupyter.notebook.get_cells();
         for (var i=0; i < cells.length; i++) {
-            if (is_graded(cells[i])) {
+            if (is_grade(cells[i])) {
                 total_points += to_float(cells[i].metadata.nbgrader.points);
             }
         }
@@ -148,53 +144,6 @@ define([
         }
     };
 
-    var validate_schema_version = function() {
-        var i, cells, schema;
-
-        if (warning !== undefined) {
-            return;
-        }
-
-        var modal_opts = {
-            notebook: Jupyter.notebook,
-            keyboard_manager: Jupyter.keyboard_manager,
-            buttons: {
-                OK: {
-                    class: "btn-primary",
-                    click: function () {
-                        warning = undefined;
-                    }
-                }
-            }
-        };
-
-        cells = Jupyter.notebook.get_cells();
-        for (i = 0; i < cells.length; i++) {
-            schema = get_schema_version(cells[i]);
-            if (schema !== undefined && schema < nbgrader_schema_version) {
-                modal_opts.title = "Outdated schema version";
-                modal_opts.body = $("<p/>").html(
-                    "At least one cell has an old version (" + schema + ") of the " +
-                    "nbgrader metadata. Please back up this notebook and then " +
-                    "update the metadata on the command " +
-                    "line using the following command: <code>nbgrader update " +
-                    Jupyter.notebook.notebook_path + "</code>");
-                warning = dialog.modal(modal_opts);
-                break;
-            }
-        }
-    };
-
-    var clear_cell_types = function() {
-        var cells = Jupyter.notebook.get_cells();
-        var i;
-        for (i = 0; i < cells.length; i++) {
-            if (cells[i].metadata.nbgrader !== undefined && cells[i].metadata.nbgrader.hasOwnProperty("cell_type")) {
-                delete cells[i].metadata.nbgrader.cell_type;
-            }
-        }
-    };
-
     /**
      * Remove all nbgrader metadata
      */
@@ -211,20 +160,7 @@ define([
         if (cell.metadata.nbgrader === undefined) {
             cell.metadata.nbgrader = {};
         }
-        cell.metadata.nbgrader.schema_version = nbgrader_schema_version;
-    };
-
-    /**
-     * Get nbgrader schema version
-     */
-    var get_schema_version = function (cell) {
-        if (cell.metadata.nbgrader === undefined) {
-            return undefined;
-        }
-        if (!cell.metadata.nbgrader.hasOwnProperty("schema_version")) {
-            return 0;
-        }
-        return cell.metadata.nbgrader.schema_version;
+        cell.metadata.nbgrader.schema_version = 1;
     };
 
     /**
@@ -276,34 +212,6 @@ define([
         }
     };
 
-    /**
-     * Is the cell a task cell?
-     */
-    var is_task = function (cell) {
-        if (cell.metadata.nbgrader === undefined) {
-            return false;
-        } else if (cell.metadata.nbgrader.task === undefined) {
-            return false;
-        } else {
-            return cell.metadata.nbgrader.task;
-        }
-    };
-
-    /**
-     * Set whether this cell is or is not a grade cell.
-     */
-    var set_task = function (cell, val) {
-        if (cell.metadata.nbgrader === undefined) {
-            cell.metadata.nbgrader = {};
-        }
-        cell.metadata.nbgrader.task = val;
-    };
-
-    var is_graded = function (cell) {
-        return ( is_grade(cell) || is_task(cell) );
-    };
-
-
     var get_points = function (cell) {
         if (cell.metadata.nbgrader === undefined) {
             return 0;
@@ -345,7 +253,7 @@ define([
     var is_locked = function (cell) {
         if (is_solution(cell)) {
             return false;
-        } else if (is_graded(cell)) {
+        } else if (is_grade(cell)) {
             return true;
         } else if (cell.metadata.nbgrader === undefined) {
             return false;
@@ -362,7 +270,7 @@ define([
         }
         if (is_solution(cell)) {
             cell.metadata.nbgrader.locked = false;
-        } else if (is_graded(cell)) {
+        } else if (is_grade(cell)) {
             cell.metadata.nbgrader.locked = true;
         } else {
             cell.metadata.nbgrader.locked = val;
@@ -374,25 +282,15 @@ define([
      * nbgrader cell type.
      */
     var display_cell = function (cell) {
-        if (is_graded(cell) || is_solution(cell)) {
+        if (is_grade(cell) || is_solution(cell)) {
             if (cell.element && !cell.element.hasClass(nbgrader_highlight_cls)) {
                 cell.element.addClass(nbgrader_highlight_cls);
             }
         }
-        if (is_graded(cell) || is_solution(cell) || is_locked(cell)) {
+        if (is_grade(cell) || is_solution(cell) || is_locked(cell)) {
             if (cell.element && !cell.element.hasClass(nbgrader_cls)) {
                 cell.element.addClass(nbgrader_cls);
             }
-        }
-        
-        if (is_task(cell) ){
-          if (cell.element && !cell.element.hasClass("nbgrader_task")) {
-                cell.element.addClass("nbgrader_task");
-          }
-        } else {
-          if (cell.element && cell.element.hasClass("nbgrader_task")) {
-                cell.element.removeClass("nbgrader_task");
-          }
         }
     };
 
@@ -410,12 +308,12 @@ define([
             var options_list = [];
             options_list.push(["-", ""]);
             options_list.push(["Manually graded answer", "manual"]);
-            options_list.push(["Manually graded task", "task"]);
             if (cell.cell_type == "code") {
                 options_list.push(["Autograded answer", "solution"]);
                 options_list.push(["Autograder tests", "tests"]);
             }
             options_list.push(["Read-only", "readonly"]);
+
             var setter = function (cell, val) {
                 if (val === "") {
                     remove_metadata(cell);
@@ -424,43 +322,28 @@ define([
                     set_solution(cell, true);
                     set_grade(cell, true);
                     set_locked(cell, false);
-                    set_task(cell, false);
-                } else if (val === "task") {
-                    set_schema_version(cell);
-                    set_solution(cell, false);
-                    set_grade(cell, false);
-                    set_locked(cell, true);
-                    set_task(cell, true);
-                    if (cell.get_text() === ''){
-                      cell.set_text('Describe the task here!')
-                    }
                 } else if (val === "solution") {
                     set_schema_version(cell);
                     set_solution(cell, true);
                     set_grade(cell, false);
                     set_locked(cell, false);
-                    set_task(cell, false);
                 } else if (val === "tests") {
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, true);
                     set_locked(cell, true);
-                    set_task(cell, false);
                 } else if (val === "readonly") {
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, false);
                     set_locked(cell, true);
-                    set_task(cell, false);
                 } else {
                     throw new Error("invalid nbgrader cell type: " + val);
                 }
             };
 
             var getter = function (cell) {
-                if (is_task(cell)) {
-                    return "task";
-                } else if (is_solution(cell) && is_grade(cell)) {
+                if (is_solution(cell) && is_grade(cell)) {
                     return "manual";
                 } else if (is_solution(cell) && cell.cell_type === "code") {
                     return "solution";
@@ -523,7 +406,7 @@ define([
      * is worth.
      */
     var create_points_input = function (div, cell, celltoolbar) {
-        if (!is_graded(cell)) {
+        if (!is_grade(cell)) {
             return;
         }
 

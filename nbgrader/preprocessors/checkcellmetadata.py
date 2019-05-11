@@ -1,6 +1,6 @@
 import traceback
 
-from ..nbgraderformat import MetadataValidator, ValidationError
+from ..nbgraderformat import Validator, ValidationError
 from . import NbGraderPreprocessor
 
 class CheckCellMetadata(NbGraderPreprocessor):
@@ -8,10 +8,10 @@ class CheckCellMetadata(NbGraderPreprocessor):
 
     def preprocess(self, nb, resources):
         try:
-            MetadataValidator().validate_nb(nb)
+            Validator().validate_nb(nb)
         except ValidationError:
             self.log.error(traceback.format_exc())
-            msg = "Notebook failed to validate; the nbgrader metadata may be corrupted."
+            msg = "Notebook failed to validate. Please update the metadata with `nbgrader update`."
             self.log.error(msg)
             raise ValidationError(msg)
 

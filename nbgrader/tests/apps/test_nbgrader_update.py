@@ -24,20 +24,10 @@ class TestNbGraderUpdate(BaseTestApp):
             fh.write("blah")
         run_nbgrader(["update", "foo"])
 
-    def test_single_notebook_v0(self):
+    def test_single_notebook(self):
         """Does it work with just a single notebook?"""
         self._copy_file(join("files", "test-v0.ipynb"), "p1.ipynb")
         run_nbgrader(["update", "p1.ipynb"])
-
-    def test_single_notebook_v1(self):
-        """Does it work with just a single notebook?"""
-        self._copy_file(join("files", "test-v1.ipynb"), "p1.ipynb")
-        run_nbgrader(["update", "p1.ipynb"])
-
-    def test_single_notebook_v2(self):
-        """Does it work with just a single notebook?"""
-        self._copy_file(join("files", "test-v2.ipynb"), "p2.ipynb")
-        run_nbgrader(["update", "p2.ipynb"])
 
     def test_validate(self):
         """Does turning validation on/off work correctly?"""
@@ -53,7 +43,7 @@ class TestNbGraderUpdate(BaseTestApp):
 
     def test_update_assign(self, db, course_dir):
         with open("nbgrader_config.py", "a") as fh:
-            fh.write("""c.CourseDirectory.db_assignments = [dict(name='ps1', duedate='2015-02-02 14:58:23.948203 America/Los_Angeles')]\n""")
+            fh.write("""c.CourseDirectory.db_assignments = [dict(name='ps1', duedate='2015-02-02 14:58:23.948203 PST')]\n""")
             fh.write("""c.CourseDirectory.db_students = [dict(id="foo"), dict(id="bar")]""")
 
         self._copy_file(join("files", "test-v0.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
@@ -67,7 +57,7 @@ class TestNbGraderUpdate(BaseTestApp):
 
     def test_update_autograde(self, db, course_dir):
         with open("nbgrader_config.py", "a") as fh:
-            fh.write("""c.CourseDirectory.db_assignments = [dict(name='ps1', duedate='2015-02-02 14:58:23.948203 America/Los_Angeles')]\n""")
+            fh.write("""c.CourseDirectory.db_assignments = [dict(name='ps1', duedate='2015-02-02 14:58:23.948203 PST')]\n""")
             fh.write("""c.CourseDirectory.db_students = [dict(id="foo"), dict(id="bar")]""")
 
         self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
@@ -85,7 +75,7 @@ class TestNbGraderUpdate(BaseTestApp):
 
     def test_update_autograde_old_assign(self, db, course_dir):
         with open("nbgrader_config.py", "a") as fh:
-            fh.write("""c.CourseDirectory.db_assignments = [dict(name='ps1', duedate='2015-02-02 14:58:23.948203 America/Los_Angeles')]\n""")
+            fh.write("""c.CourseDirectory.db_assignments = [dict(name='ps1', duedate='2015-02-02 14:58:23.948203 PST')]\n""")
             fh.write("""c.CourseDirectory.db_students = [dict(id="foo"), dict(id="bar")]""")
 
         self._copy_file(join("files", "test-v0.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
@@ -100,3 +90,4 @@ class TestNbGraderUpdate(BaseTestApp):
 
         # now autograde should suceed
         run_nbgrader(["autograde", "ps1", "--db", db])
+

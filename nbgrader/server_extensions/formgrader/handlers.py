@@ -7,7 +7,6 @@ from tornado import web
 from .base import BaseHandler, check_xsrf
 from ...api import MissingEntry
 
-
 class ManageAssignmentsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
@@ -105,7 +104,7 @@ class SubmissionHandler(BaseHandler):
             'student': student_id,
             'last_name': submission.student.last_name,
             'first_name': submission.student.first_name,
-            'notebook_path': self.url_prefix + '/' + relative_path
+            'notebook_path': self.url_prefix + '/' + relative_path,
         }
 
         if not os.path.exists(filename):
@@ -116,7 +115,7 @@ class SubmissionHandler(BaseHandler):
             self.write(html)
 
         else:
-            html, _ = self.exporter.from_filename(filename, resources=resources)
+            html, _ = self.taskview_exporter.from_filename(filename, resources=resources)
             self.write(html)
 
 
