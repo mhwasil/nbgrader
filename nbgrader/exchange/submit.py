@@ -172,6 +172,7 @@ class ExchangeSubmit(Exchange):
 
     def copy_and_overwrite_dir(self, src, dest):
         distutils.dir_util.copy_tree(src, dest)
+        
     def copy_files(self):
         self.init_release()
 
