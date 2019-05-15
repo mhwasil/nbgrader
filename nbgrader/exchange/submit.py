@@ -195,7 +195,6 @@ class ExchangeSubmit(Exchange):
             hashcode = list(hashcode)
             hashcode = str(''.join(hashcode[0:5])+"-"+''.join(hashcode[5:10])+"-"+''.join(hashcode[10:15])+"-"+''.join(hashcode[15:20]))
             self.log.info("Hashcode generated: {}".format(hashcode))
-            #print ("Hashcode: {}-{}-{}-{}\n".format(''.join(hashcode[0:5]),''.join(hashcode[5:10]),''.join(hashcode[10:15]),''.join(hashcode[15:20])))
 
             # Generate file in which file name is mwasil2s_info.txt
             with open(os.path.join(self.src_path, "{}_info.txt".format(get_username())), "w") as fh:
