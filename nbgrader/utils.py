@@ -438,3 +438,15 @@ def capture_log(app, fmt="[%(levelname)s] %(message)s"):
         app.log.removeHandler(handler)
 
     return result
+
+def compute_hashcode(filename, method='md5'):
+    if method=='md5':
+        hashcode = hashlib.md5()
+    elif method=='sha1':
+        hashcode = hashlib.sha1()
+
+    with open(filename, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hashcode.update(chunk)
+            
+    return hashcode.hexdigest()
