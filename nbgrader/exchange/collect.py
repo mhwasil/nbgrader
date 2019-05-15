@@ -117,7 +117,7 @@ class ExchangeCollect(Exchange):
             user_infos.append(user_info)
 
         #Create hashcode list
-        if user_info is not None: 
+        if user_infos is not None: 
             self.log.info("Creating hashcode list")
             csv_filename = "hashcode_list.csv"
             html_filename = "hashcode_list.html"
