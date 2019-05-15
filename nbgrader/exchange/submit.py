@@ -13,6 +13,11 @@ from .exchange import Exchange
 from ..utils import get_username, check_mode, find_all_notebooks
 from ..utils import compute_hashcode
 
+import nbformat as nbf
+import json
+import numpy as np
+import distutils
+import glob
 
 class ExchangeSubmit(Exchange):
 
@@ -166,21 +171,12 @@ class ExchangeSubmit(Exchange):
         print ("GENERATE: ",html_file)
         os.system('jupyter nbconvert --to html {} {}'.format(hashcoded_notebook_file, html_file))
 
-    def generate_hashcode(self,filename):
-        notebook_file = os.path.join(self.src_path, self.coursedir.assignment_id+".ipynb")
-        return hash_with_md5(notebook_file)
-
     def copy_and_overwrite_dir(self, src, dest):
         distutils.dir_util.copy_tree(src, dest)
         
     def copy_files(self):
         self.init_release()
 
-        # Original notebook file
-        # TODO: Handle multiple notebook file
-        # file_list = os.listdir(self.src_path)
-        # for file in glob.glob("*.ipynb"):
-        #     print(file)
         student_notebook_file = os.path.join(self.src_path, self.coursedir.assignment_id+".ipynb")
         #check notebook exists
         if os.path.isfile(student_notebook_file):
@@ -201,8 +197,7 @@ class ExchangeSubmit(Exchange):
             self.log.info("Hashcode generated: {}".format(hashcode))
             #print ("Hashcode: {}-{}-{}-{}\n".format(''.join(hashcode[0:5]),''.join(hashcode[5:10]),''.join(hashcode[10:15]),''.join(hashcode[15:20])))
 
-            # TODO
-            # Generate file in which file name is username_mwasil2s_hash_hashcode
+            # Generate file in which file name is mwasil2s_info.txt
             with open(os.path.join(self.src_path, "{}_info.txt".format(get_username())), "w") as fh:
                 fh.write("Username: {}\n".format(get_username()))
                 fh.write("Hashcode: {}\n".format(hashcode))
@@ -214,13 +209,19 @@ class ExchangeSubmit(Exchange):
             temp_html_file = os.path.join(temp_path, self.coursedir.assignment_id+".html")
             self.add_text_to_cell(hashcoded_notebook_file, hashcode, cell_id="hashcode_cell", msg="Ihr Hashcode")
             
+            print ("===========================")
+            print ("tmp",temp_html_file)
             # generate html inside the original nbgrader directory     
             self.log.info("Generate html and copy html to student course dir")  
             self.generate_html(hashcoded_notebook_file, temp_html_file)
             
             # Copy html file to course_dir
-            student_html_file = os.path.join(self.src_path, self.coursedir.assignment_id+".html")
+            # Differentiate between the nb file name and the html version with hashcode to avoid conflict when generating feedback
+            html_suffix_file = "hashcode"
+            student_html_file = os.path.join(self.src_path, self.coursedir.assignment_id+"_{}.html".format(html_suffix_file))
+            print ("sdir ", student_html_file)
             distutils.file_util.copy_file(temp_html_file, student_html_file)
+
         dest_path = os.path.join(self.inbound_path, self.assignment_filename)
         if self.add_random_string:
             cache_path = os.path.join(self.cache_path, self.assignment_filename.rsplit('+', 1)[0])
