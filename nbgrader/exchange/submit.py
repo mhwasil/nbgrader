@@ -208,8 +208,6 @@ class ExchangeSubmit(Exchange):
             temp_html_file = os.path.join(temp_path, self.coursedir.assignment_id+".html")
             self.add_text_to_cell(hashcoded_notebook_file, hashcode, cell_id="hashcode_cell", msg="Ihr Hashcode")
             
-            print ("===========================")
-            print ("tmp",temp_html_file)
             # generate html inside the original nbgrader directory     
             self.log.info("Generate html and copy html to student course dir")  
             self.generate_html(hashcoded_notebook_file, temp_html_file)
@@ -218,7 +216,6 @@ class ExchangeSubmit(Exchange):
             # Differentiate between the nb file name and the html version with hashcode to avoid conflict when generating feedback
             html_suffix_file = "hashcode"
             student_html_file = os.path.join(self.src_path, self.coursedir.assignment_id+"_{}.html".format(html_suffix_file))
-            print ("sdir ", student_html_file)
             distutils.file_util.copy_file(temp_html_file, student_html_file)
 
         dest_path = os.path.join(self.inbound_path, self.assignment_filename)
