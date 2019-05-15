@@ -114,10 +114,11 @@ class ExchangeCollect(Exchange):
                     ))
             
             user_info = self.extract_user_info(dest_path, student_id)
-            user_infos.append(user_info)
+            if user_info is not None:
+                user_infos.append(user_info)
 
         #Create hashcode list
-        if user_infos is not None: 
+        if len(user_infos) > 0: 
             self.log.info("Creating hashcode list")
             csv_filename = "hashcode_list.csv"
             html_filename = "hashcode_list.html"
@@ -130,6 +131,8 @@ class ExchangeCollect(Exchange):
             self.log.info("Creating {}".format(html_file_dest_path))
             data = pd.read_csv(csv_file_dest_path) 
             data.to_html(html_file_dest_path, justify='center')
+        else:
+            self.log.info("Userinfo not found, hashcode list is not generated")
 
     def extract_user_info(self, info_path, username):
         file_info_path = os.path.join(info_path, username+"_info.txt")
