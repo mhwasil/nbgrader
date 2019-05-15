@@ -78,7 +78,7 @@ class ExchangeCollect(Exchange):
 
             hashed_dest_path = self.coursedir.format_path("hashed_submission", student_id, self.coursedir.assignment_id)
             if not os.path.exists(os.path.dirname(hashed_dest_path)):
-            os.makedirs(os.path.dirname(hashed_dest_path))
+                os.makedirs(os.path.dirname(hashed_dest_path))
 
             copy = False
             updating = False
