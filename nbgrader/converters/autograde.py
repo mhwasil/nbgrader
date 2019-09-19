@@ -55,7 +55,8 @@ class Autograde(BaseConverter):
         DeduplicateIds,
         OverwriteKernelspec,
         OverwriteCells,
-        CheckCellMetadata
+        CheckCellMetadata,
+        Unscramble
     ])
     autograde_preprocessors = List([
         Execute,
