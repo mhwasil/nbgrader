@@ -34,9 +34,15 @@ var NotebookUI = Backbone.View.extend({
         // notebook name
         var name = this.model.get("name");
         this.$name.attr("data-order", name);
-        this.$name.append($("<a/>")
-            .attr("href", base_url + "/formgrader/gradebook/" + assignment_id + "/" + name)
-            .text(name));
+        if (view === 'task') {
+            this.$name.append($("<a/>")
+                .attr("href", base_url + "/formgrader/gradebook/tasks/" + assignment_id + "/" + name)
+                .text(name));
+        } else {
+            this.$name.append($("<a/>")
+                .attr("href", base_url + "/formgrader/gradebook/" + assignment_id + "/" + name)
+                .text(name));
+        }
 
         // average score
         var score = roundToPrecision(this.model.get("average_score"), 2);
