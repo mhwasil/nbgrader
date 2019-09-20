@@ -17,6 +17,7 @@ from .clearhiddentests import ClearHiddenTests
 from .clearmarkingscheme import ClearMarkScheme
 from .overwritekernelspec import OverwriteKernelspec
 from .unscramble import Unscramble
+from .filtercellsbyid import FilterCellsById
 
 __all__ = [
     "AssignLatePenalties",
@@ -36,5 +37,6 @@ __all__ = [
     "ClearHiddenTests",
     "ClearMarkScheme",
     "OverwriteKernelspec",
-    "Unscramble"
+    "Unscramble",
+    "FilterCellsById"
 ]
