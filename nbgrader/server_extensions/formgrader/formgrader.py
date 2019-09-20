@@ -10,6 +10,7 @@ from notebook.utils import url_path_join as ujoin
 
 from . import handlers, apihandlers
 from ...apps.baseapp import NbGrader
+from ...preprocessors import FilterCellsById
 
 
 class FormgradeExtension(NbGrader):
@@ -27,6 +28,8 @@ class FormgradeExtension(NbGrader):
         extra_config = super(FormgradeExtension, self).build_extra_config()
         extra_config.HTMLExporter.template_file = 'formgrade'
         extra_config.HTMLExporter.template_path = [handlers.template_path]
+        extra_config.HTMLExporter.preprocessors = [FilterCellsById]
+
         return extra_config
 
     def init_tornado_settings(self, webapp):
