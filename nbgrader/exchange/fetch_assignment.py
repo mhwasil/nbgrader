@@ -1,10 +1,14 @@
 import os
 import shutil
+import glob
+import copy
+import nbformat
 
 from traitlets import Bool
 
 from .exchange import Exchange
 from ..utils import check_mode
+from ..preprocessors import Scramble, PermuteTasks
 
 
 class ExchangeFetchAssignment(Exchange):
@@ -40,6 +44,8 @@ class ExchangeFetchAssignment(Exchange):
                 os.path.join(self.outbound_path, "*"))
         if not check_mode(self.src_path, read=True, execute=True):
             self.fail("You don't have read permissions for the directory: {}".format(self.src_path))
+        # Add user to src path in order to fetch personalized assignment
+        # self.src_path += '/{}'.format(os.getenv('JUPYTERHUB_USER'))
 
     def init_dest(self):
         if self.path_includes_course:
@@ -79,8 +85,31 @@ class ExchangeFetchAssignment(Exchange):
         else:
             shutil.copytree(src, dest, ignore=shutil.ignore_patterns(*self.coursedir.ignore))
 
+    def do_scrambling(self, dest, student_id):
+        self.log.info("Scrambling for {}".format(student_id))
+        nbs = glob.glob(dest + '/*.ipynb')
+        self.log.info("Found the following notebooks: {}".format(nbs))
+        scrambler = Scramble(seed=hash(student_id))
+        permuter = PermuteTasks(seed=hash(student_id))
+        for nb_path in nbs:
+        	nb = nbformat.read(nb_path, as_version=4)
+        	resources = {}
+        	nb, resources = scrambler.preprocess(nb, resources)
+        	nb, resources = permuter.preprocess(nb, resources)
+        	nbformat.write(nb, nb_path)
+        self.log.info("Scrambled")
+
+
+
+
+
+
     def copy_files(self):
+        self.log.info("Potato")
+        self.log.info("Outbound path: "+self.outbound_path)
+        
         self.log.info("Source: {}".format(self.src_path))
         self.log.info("Destination: {}".format(self.dest_path))
         self.do_copy(self.src_path, self.dest_path)
+        self.do_scrambling(self.dest_path, os.getenv('JUPYTERHUB_USER'))
         self.log.info("Fetched as: {} {}".format(self.coursedir.course_id, self.coursedir.assignment_id))
