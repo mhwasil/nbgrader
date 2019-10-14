@@ -2951,7 +2951,7 @@ class Gradebook(object):
             A list of dictionaries, one per student
 
         """
-        total_score, = self.db.query(func.sum(Assignment.max_score)).one()
+        total_score, = self.db.query(Assignment.max_score).one()
         if len(self.assignments) > 0 and total_score > 0:
             # subquery the scores
             scores = self.db.query(
