@@ -17,11 +17,11 @@ Instructor commands
     :maxdepth: 1
 
     nbgrader-quickstart
-    nbgrader-assign
+    nbgrader-generate-assignment
     nbgrader-validate
     nbgrader-update
     nbgrader-autograde
-    nbgrader-feedback
+    nbgrader-generate-feedback
     nbgrader-export
 
 The following commands are used to manage the database:
@@ -43,7 +43,8 @@ The following commands are meant for instructors, but are only relevant when usi
 .. toctree::
     :maxdepth: 1
 
-    nbgrader-release
+    nbgrader-release-assignment
+    nbgrader-release-feedback
     nbgrader-list
     nbgrader-collect
     nbgrader-zip-collect
@@ -57,6 +58,7 @@ Note that these commands are meant for students, but are only relevant when usin
     :maxdepth: 1
 
     nbgrader-list
-    nbgrader-fetch
+    nbgrader-fetch-assignment
+    nbgrader-fetch-feedback
     nbgrader-validate
     nbgrader-submit

@@ -88,7 +88,7 @@ class TestNbGraderDb(BaseTestApp):
         run_nbgrader(["db", "student", "add", "foo", "--db", db])
         run_nbgrader(["db", "assignment", "add", "ps1", "--db", db])
         self._copy_file(join("files", "submitted-unchanged.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
         self._copy_file(join("files", "submitted-unchanged.ipynb"), join(course_dir, "submitted", "foo", "ps1", "p1.ipynb"))
         run_nbgrader(["autograde", "ps1", "--db", db])
 
@@ -114,7 +114,7 @@ class TestNbGraderDb(BaseTestApp):
         run_nbgrader(["db", "student", "add", "foo", "--db", db])
         run_nbgrader(["db", "assignment", "add", "ps1", "--db", db])
         self._copy_file(join("files", "submitted-unchanged.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
         self._copy_file(join("files", "submitted-unchanged.ipynb"), join(course_dir, "submitted", "foo", "ps1", "p1.ipynb"))
         run_nbgrader(["autograde", "ps1", "--db", db])
 
@@ -143,8 +143,8 @@ class TestNbGraderDb(BaseTestApp):
         assert out == dedent(
             """
             There are 2 students in the database:
-            bar (None, None) -- None
-            foo (xyz, abc) -- foo@bar.com
+            bar (None, None) -- None, None
+            foo (xyz, abc) -- foo@bar.com, None
             """
         ).strip() + "\n"
 
@@ -253,7 +253,7 @@ class TestNbGraderDb(BaseTestApp):
         run_nbgrader(["db", "student", "add", "foo", "--db", db])
         run_nbgrader(["db", "assignment", "add", "ps1", "--db", db])
         self._copy_file(join("files", "submitted-unchanged.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
         self._copy_file(join("files", "submitted-unchanged.ipynb"), join(course_dir, "submitted", "foo", "ps1", "p1.ipynb"))
         run_nbgrader(["autograde", "ps1", "--db", db])
 
@@ -279,7 +279,7 @@ class TestNbGraderDb(BaseTestApp):
         run_nbgrader(["db", "student", "add", "foo", "--db", db])
         run_nbgrader(["db", "assignment", "add", "ps1", "--db", db])
         self._copy_file(join("files", "submitted-unchanged.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
         self._copy_file(join("files", "submitted-unchanged.ipynb"), join(course_dir, "submitted", "foo", "ps1", "p1.ipynb"))
         run_nbgrader(["autograde", "ps1", "--db", db])
 
@@ -385,11 +385,25 @@ class TestNbGraderDb(BaseTestApp):
         self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
         self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "p2.ipynb"))
 
-        # check that nbgrader assign fails
-        run_nbgrader(["assign", "ps1", "--create"])
+        # check that nbgrader generate_assignment passes
+        run_nbgrader(["generate_assignment", "ps1"])
 
         # test upgrading with a current database
         run_nbgrader(["db", "upgrade"])
+
+    def test_upgrade_old_db_no_assign(self, course_dir):
+        # add assignment files
+        self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
+        self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "p2.ipynb"))
+
+        # replace the gradebook with an old version
+        self._copy_file(join("files", "gradebook.db"), join(course_dir, "gradebook.db"))
+
+        # upgrade the database
+        run_nbgrader(["db", "upgrade"])
+
+        # check that nbgrader assign passes
+        run_nbgrader(["assign", "ps1"])
 
     def test_upgrade_old_db(self, course_dir):
         # add assignment files
@@ -399,11 +413,11 @@ class TestNbGraderDb(BaseTestApp):
         # replace the gradebook with an old version
         self._copy_file(join("files", "gradebook.db"), join(course_dir, "gradebook.db"))
 
-        # check that nbgrader assign fails
-        run_nbgrader(["assign", "ps1", "--create"], retcode=1)
+        # check that nbgrader generate_assignment fails
+        run_nbgrader(["generate_assignment", "ps1"], retcode=1)
 
         # upgrade the database
         run_nbgrader(["db", "upgrade"])
 
-        # check that nbgrader assign passes
-        run_nbgrader(["assign", "ps1", "--create"])
+        # check that nbgrader generate_assignment passes
+        run_nbgrader(["generate_assignment", "ps1"])

@@ -11,22 +11,23 @@ from traitlets.config.application import catch_config_error
 from jupyter_core.application import NoStart
 
 import nbgrader
-from .. import preprocessors
-from .. import plugins
-from ..coursedir import CourseDirectory
-from .. import exchange
-from .. import converters
 from .baseapp import nbgrader_aliases, nbgrader_flags
 from . import (
     NbGrader,
     AssignApp,
+    GenerateAssignmentApp,
     AutogradeApp,
     FormgradeApp,
     FeedbackApp,
+    GenerateFeedbackApp,
+    ReleaseFeedbackApp,
     ValidateApp,
     ReleaseApp,
+    ReleaseAssignmentApp,
     CollectApp,
     FetchApp,
+    FetchAssignmentApp,
+    FetchFeedbackApp,
     SubmitApp,
     ListApp,
     ExtensionApp,
@@ -86,12 +87,20 @@ class NbGraderApp(NbGrader):
         to see these options).
 
         For more details on how each of the subcommands work, please see the help
-        for that command (e.g. `nbgrader assign --help-all`).
+        for that command (e.g. `nbgrader generate_assignment --help-all`).
         """
 
     subcommands = dict(
         assign=(
             AssignApp,
+            dedent(
+                """
+                DEPRECATED, please use generate_assignment instead.
+                """
+            ).strip()
+        ),
+        generate_assignment=(
+            GenerateAssignmentApp,
             dedent(
                 """
                 Create the student version of an assignment. Intended for use by
@@ -121,6 +130,14 @@ class NbGraderApp(NbGrader):
             FeedbackApp,
             dedent(
                 """
+                DEPRECATED: use generate_feedback instead.
+                """
+            ).strip()
+        ),
+        generate_feedback=(
+            GenerateFeedbackApp,
+            dedent(
+                """
                 Generate feedback (after autograding and manual grading).
                 Intended for use by instructors only.
                 """
@@ -139,7 +156,24 @@ class NbGraderApp(NbGrader):
             ReleaseApp,
             dedent(
                 """
+                DEPRECATED: use release_assignment instead.
+                """
+            ).strip()
+        ),
+        release_assignment=(
+            ReleaseAssignmentApp,
+            dedent(
+                """
                 Release an assignment to students through the nbgrader exchange.
+                Intended for use by instructors only.
+                """
+            ).strip()
+        ),
+        release_feedback=(
+            ReleaseFeedbackApp,
+            dedent(
+                """
+                Release assignment feedback to students through the nbgrader exchange.
                 Intended for use by instructors only.
                 """
             ).strip()
@@ -167,7 +201,24 @@ class NbGraderApp(NbGrader):
             FetchApp,
             dedent(
                 """
+                DEPRECATED: use fetch_assignment instead.
+                """
+            ).strip()
+        ),
+        fetch_assignment=(
+            FetchAssignmentApp,
+            dedent(
+                """
                 Fetch an assignment from an instructor through the nbgrader exchange.
+                Intended for use by students only.
+                """
+            ).strip()
+        ),
+        fetch_feedback=(
+            FetchFeedbackApp,
+            dedent(
+                """
+                Fetch feedback for an assignment from an instructor through the nbgrader exchange.
                 Intended for use by students only.
                 """
             ).strip()
@@ -244,41 +295,7 @@ class NbGraderApp(NbGrader):
 
     @default("classes")
     def _classes_default(self):
-        classes = super(NbGraderApp, self)._classes_default()
-
-        # include the coursedirectory
-        classes.append(CourseDirectory)
-
-        # include all the apps that have configurable options
-        for _, (app, _) in self.subcommands.items():
-            if len(app.class_traits(config=True)) > 0:
-                classes.append(app)
-
-        # include plugins that have configurable options
-        for pg_name in plugins.__all__:
-            pg = getattr(plugins, pg_name)
-            if pg.class_traits(config=True):
-                classes.append(pg)
-
-        # include all preprocessors that have configurable options
-        for pp_name in preprocessors.__all__:
-            pp = getattr(preprocessors, pp_name)
-            if len(pp.class_traits(config=True)) > 0:
-                classes.append(pp)
-
-        # include all the exchange actions
-        for ex_name in exchange.__all__:
-            ex = getattr(exchange, ex_name)
-            if hasattr(ex, "class_traits") and ex.class_traits(config=True):
-                classes.append(ex)
-
-        # include all the converters
-        for ex_name in converters.__all__:
-            ex = getattr(converters, ex_name)
-            if hasattr(ex, "class_traits") and ex.class_traits(config=True):
-                classes.append(ex)
-
-        return classes
+        return self.all_configurable_classes()
 
     @catch_config_error
     def initialize(self, argv=None):
@@ -296,6 +313,7 @@ class NbGraderApp(NbGrader):
     def print_version(self):
         print("Python version {}".format(sys.version))
         print("nbgrader version {}".format(nbgrader.__version__))
+
 
 def main():
     NbGraderApp.launch_instance()

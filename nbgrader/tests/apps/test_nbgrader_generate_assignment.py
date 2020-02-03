@@ -12,32 +12,43 @@ from .. import run_nbgrader
 from .base import BaseTestApp
 
 
-class TestNbGraderAssign(BaseTestApp):
+class TestNbGraderGenerateAssignment(BaseTestApp):
 
     def test_help(self):
         """Does the help display without error?"""
-        run_nbgrader(["assign", "--help-all"])
+        run_nbgrader(["generate_assignment", "--help-all"])
 
     def test_no_args(self):
         """Is there an error if no arguments are given?"""
-        run_nbgrader(["assign"], retcode=1)
+        run_nbgrader(["generate_assignment"], retcode=1)
 
     def test_conflicting_args(self):
         """Is there an error if assignment is specified both in config and as an argument?"""
-        run_nbgrader(["assign", "--assignment", "foo", "foo"], retcode=1)
+        run_nbgrader(["generate_assignment", "--assignment", "foo", "foo"], retcode=1)
 
     def test_multiple_args(self):
         """Is there an error if multiple arguments are given?"""
-        run_nbgrader(["assign", "foo", "bar"], retcode=1)
+        run_nbgrader(["generate_assignment", "foo", "bar"], retcode=1)
 
     def test_no_assignment(self, course_dir):
-        """Is an error thrown if the assignment doesn't exist?"""
+        """Is an assignment automatically created if it doesn't exist?"""
         self._empty_notebook(join(course_dir, 'source', 'ps1', 'foo.ipynb'))
-        run_nbgrader(["assign", "ps1"], retcode=1)
-        # check that the --create flag works
-        run_nbgrader(["assign", "ps1", "--create", "--debug"])
+
+        # If we explicitly disable creating assignments, assign should fail
+        run_nbgrader(["generate_assignment", "ps1", "--GenerateAssignment.create_assignment=False"], retcode=1)
+
+        # The default is now to create missing assignments (formerly --create)
+        run_nbgrader(["generate_assignment", "ps1", "--debug"])
 
     def test_single_file(self, course_dir, temp_cwd):
+        """Can a single file be assigned?"""
+        self._empty_notebook(join(course_dir, 'source', 'ps1', 'foo.ipynb'))
+        with open("nbgrader_config.py", "a") as fh:
+            fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
+        run_nbgrader(["generate_assignment", "ps1"])
+        assert os.path.isfile(join(course_dir, "release", "ps1", "foo.ipynb"))
+
+    def test_deprecation(self, course_dir, temp_cwd):
         """Can a single file be assigned?"""
         self._empty_notebook(join(course_dir, 'source', 'ps1', 'foo.ipynb'))
         with open("nbgrader_config.py", "a") as fh:
@@ -49,7 +60,7 @@ class TestNbGraderAssign(BaseTestApp):
         """Test that an error is thrown when the assignment name is invalid."""
         self._empty_notebook(join(course_dir, 'source', 'foo+bar', 'foo.ipynb'))
         with pytest.raises(traitlets.TraitError):
-            run_nbgrader(["assign", "foo+bar", "--create"])
+            run_nbgrader(["generate_assignment", "foo+bar"])
         assert not os.path.isfile(join(course_dir, "release", "foo+bar", "foo.ipynb"))
 
     def test_multiple_files(self, course_dir):
@@ -58,7 +69,7 @@ class TestNbGraderAssign(BaseTestApp):
         self._empty_notebook(join(course_dir, 'source', 'ps1', 'bar.ipynb'))
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1"])
+        run_nbgrader(["generate_assignment", "ps1"])
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'foo.ipynb'))
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'bar.ipynb'))
 
@@ -70,7 +81,7 @@ class TestNbGraderAssign(BaseTestApp):
         self._empty_notebook(join(course_dir, 'source', 'ps1', 'bar.ipynb'))
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1"])
+        run_nbgrader(["generate_assignment", "ps1"])
 
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'foo.ipynb'))
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'bar.ipynb'))
@@ -88,7 +99,7 @@ class TestNbGraderAssign(BaseTestApp):
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
 
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
 
         with Gradebook(db) as gb:
             notebook = gb.find_notebook("test", "ps1")
@@ -103,7 +114,7 @@ class TestNbGraderAssign(BaseTestApp):
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
 
-        run_nbgrader(["assign", "ps1"])
+        run_nbgrader(["generate_assignment", "ps1"])
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'test.ipynb'))
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'foo.txt'))
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'data', 'bar.txt'))
@@ -111,16 +122,16 @@ class TestNbGraderAssign(BaseTestApp):
 
         # check that it skips the existing directory
         os.remove(join(course_dir, 'release', 'ps1', 'foo.txt'))
-        run_nbgrader(["assign", "ps1"])
+        run_nbgrader(["generate_assignment", "ps1"])
         assert not os.path.isfile(join(course_dir, 'release', 'ps1', 'foo.txt'))
 
         # force overwrite the supplemental files
-        run_nbgrader(["assign", "ps1", "--force"])
+        run_nbgrader(["generate_assignment", "ps1", "--force"])
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'foo.txt'))
 
         # force overwrite
         os.remove(join(course_dir, 'source', 'ps1', 'foo.txt'))
-        run_nbgrader(["assign", "ps1", "--force"])
+        run_nbgrader(["generate_assignment", "ps1", "--force"])
         assert os.path.isfile(join(course_dir, "release", "ps1", "test.ipynb"))
         assert os.path.isfile(join(course_dir, "release", "ps1", "data", "bar.txt"))
         assert not os.path.isfile(join(course_dir, "release", "ps1", "foo.txt"))
@@ -135,7 +146,7 @@ class TestNbGraderAssign(BaseTestApp):
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
 
-        run_nbgrader(["assign", "ps1"])
+        run_nbgrader(["generate_assignment", "ps1"])
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'test.ipynb'))
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'foo.txt'))
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'data', 'bar.txt'))
@@ -143,36 +154,51 @@ class TestNbGraderAssign(BaseTestApp):
 
         # check that it skips the existing directory
         os.remove(join(course_dir, 'release', 'ps1', 'foo.txt'))
-        run_nbgrader(["assign", "ps1"])
+        run_nbgrader(["generate_assignment", "ps1"])
         assert not os.path.isfile(join(course_dir, 'release', 'ps1', 'foo.txt'))
 
         # force overwrite the supplemental files
-        run_nbgrader(["assign", "ps1", "-f"])
+        run_nbgrader(["generate_assignment", "ps1", "-f"])
         assert os.path.isfile(join(course_dir, 'release', 'ps1', 'foo.txt'))
 
         # force overwrite
         os.remove(join(course_dir, 'source', 'ps1', 'foo.txt'))
-        run_nbgrader(["assign", "ps1", "-f"])
+        run_nbgrader(["generate_assignment", "ps1", "-f"])
         assert os.path.isfile(join(course_dir, "release", "ps1", "test.ipynb"))
         assert os.path.isfile(join(course_dir, "release", "ps1", "data", "bar.txt"))
         assert not os.path.isfile(join(course_dir, "release", "ps1", "foo.txt"))
         assert not os.path.isfile(join(course_dir, "release", "ps1", "blah.pyc"))
 
-    def test_permissions(self, course_dir):
+    @pytest.mark.parametrize("groupshared", [False, True])
+    def test_permissions(self, course_dir, groupshared):
         """Are permissions properly set?"""
         self._empty_notebook(join(course_dir, 'source', 'ps1', 'foo.ipynb'))
         self._make_file(join(course_dir, 'source', 'ps1', 'foo.txt'), 'foo')
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1"])
+            if groupshared:
+                fh.write("""c.CourseDirectory.groupshared = True\n""")
+        run_nbgrader(["generate_assignment", "ps1"])
 
-        if sys.platform == 'win32':
-            perms = '666'
+        if not groupshared:
+            if sys.platform == 'win32':
+                perms = '666'
+            else:
+                perms = '644'
         else:
-            perms = '644'
+            if sys.platform == 'win32':
+                perms = '666'
+                dirperms = '777'
+            else:
+                perms = '664'
+                dirperms = '2775'
 
         assert os.path.isfile(join(course_dir, "release", "ps1", "foo.ipynb"))
         assert os.path.isfile(join(course_dir, "release", "ps1", "foo.txt"))
+        if groupshared:
+            # non-groupshared doesn't make guarantees about directory perms
+            assert self._get_permissions(join(course_dir, "release")) == dirperms
+            assert self._get_permissions(join(course_dir, "release", "ps1")) == dirperms
         assert self._get_permissions(join(course_dir, "release", "ps1", "foo.ipynb")) == perms
         assert self._get_permissions(join(course_dir, "release", "ps1", "foo.txt")) == perms
 
@@ -182,7 +208,7 @@ class TestNbGraderAssign(BaseTestApp):
         self._make_file(join(course_dir, 'source', 'ps1', 'foo.txt'), 'foo')
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1", "--AssignApp.permissions=444"])
+        run_nbgrader(["generate_assignment", "ps1", "--GenerateAssignment.permissions=444"])
 
         assert os.path.isfile(join(course_dir, "release", "ps1", "foo.ipynb"))
         assert os.path.isfile(join(course_dir, "release", "ps1", "foo.txt"))
@@ -194,7 +220,7 @@ class TestNbGraderAssign(BaseTestApp):
         self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "test.ipynb"))
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
 
         with Gradebook(db) as gb:
             assignment = gb.find_assignment("ps1")
@@ -202,7 +228,7 @@ class TestNbGraderAssign(BaseTestApp):
             notebook1 = gb.find_notebook("test", "ps1")
 
             self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "test2.ipynb"))
-            run_nbgrader(["assign", "ps1", "--db", db, "--force"])
+            run_nbgrader(["generate_assignment", "ps1", "--db", db, "--force"])
 
             gb.db.refresh(assignment)
             assert len(assignment.notebooks) == 2
@@ -210,7 +236,7 @@ class TestNbGraderAssign(BaseTestApp):
             notebook2 = gb.find_notebook("test2", "ps1")
 
             os.remove(join(course_dir, "source", "ps1", "test2.ipynb"))
-            run_nbgrader(["assign", "ps1", "--db", db, "--force"])
+            run_nbgrader(["generate_assignment", "ps1", "--db", db, "--force"])
 
             gb.db.refresh(assignment)
             assert len(assignment.notebooks) == 1
@@ -224,7 +250,7 @@ class TestNbGraderAssign(BaseTestApp):
         self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "test.ipynb"))
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
 
         with Gradebook(db) as gb:
             assignment = gb.find_assignment("ps1")
@@ -234,7 +260,7 @@ class TestNbGraderAssign(BaseTestApp):
             gb.add_submission("ps1", "hacker123")
 
             self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "test2.ipynb"))
-            run_nbgrader(["assign", "ps1", "--db", db, "--force"], retcode=1)
+            run_nbgrader(["generate_assignment", "ps1", "--db", db, "--force"], retcode=1)
 
     def test_remove_extra_notebooks_with_submissions(self, db, course_dir):
         """Is an error thrown when notebooks are removed and there are existing submissions?"""
@@ -243,7 +269,7 @@ class TestNbGraderAssign(BaseTestApp):
         self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "test2.ipynb"))
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
 
         with Gradebook(db) as gb:
             assignment = gb.find_assignment("ps1")
@@ -253,15 +279,15 @@ class TestNbGraderAssign(BaseTestApp):
             gb.add_submission("ps1", "hacker123")
 
             os.remove(join(course_dir, "source", "ps1", "test2.ipynb"))
-            run_nbgrader(["assign", "ps1", "--db", db, "--force"], retcode=1)
+            run_nbgrader(["generate_assignment", "ps1", "--db", db, "--force"], retcode=1)
 
     def test_same_notebooks_with_submissions(self, db, course_dir):
-        """Is it ok to run nbgrader assign with the same notebooks and existing submissions?"""
+        """Is it ok to run nbgrader generate_assignment with the same notebooks and existing submissions?"""
 
         self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "test.ipynb"))
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1", "--db", db])
+        run_nbgrader(["generate_assignment", "ps1", "--db", db])
 
         with Gradebook(db) as gb:
             assignment = gb.find_assignment("ps1")
@@ -272,7 +298,7 @@ class TestNbGraderAssign(BaseTestApp):
             submission = gb.add_submission("ps1", "hacker123")
             submission_notebook = submission.notebooks[0]
 
-            run_nbgrader(["assign", "ps1", "--db", db, "--force"])
+            run_nbgrader(["generate_assignment", "ps1", "--db", db, "--force"])
 
             gb.db.refresh(assignment)
             assert len(assignment.notebooks) == 1
@@ -285,7 +311,7 @@ class TestNbGraderAssign(BaseTestApp):
         self._copy_file(join("files", "test.ipynb"), join(course_dir, "source", "ps1", "p2.ipynb"))
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1"])
+        run_nbgrader(["generate_assignment", "ps1"])
 
         assert os.path.exists(join(course_dir, "release", "ps1", "p1.ipynb"))
         assert os.path.exists(join(course_dir, "release", "ps1", "p2.ipynb"))
@@ -295,7 +321,7 @@ class TestNbGraderAssign(BaseTestApp):
 
         self._copy_file(join("files", "submitted-changed.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
         self._copy_file(join("files", "submitted-changed.ipynb"), join(course_dir, "source", "ps1", "p2.ipynb"))
-        run_nbgrader(["assign", "ps1", "--notebook", "p1", "--force"])
+        run_nbgrader(["generate_assignment", "ps1", "--notebook", "p1", "--force"])
 
         assert os.path.exists(join(course_dir, "release", "ps1", "p1.ipynb"))
         assert os.path.exists(join(course_dir, "release", "ps1", "p2.ipynb"))
@@ -305,16 +331,16 @@ class TestNbGraderAssign(BaseTestApp):
     def test_fail_no_notebooks(self):
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
-        run_nbgrader(["assign", "ps1"], retcode=1)
+        run_nbgrader(["generate_assignment", "ps1"], retcode=1)
 
     def test_no_metadata(self, course_dir):
         self._copy_file(join("files", "test-no-metadata.ipynb"), join(course_dir, "source", "ps1", "p1.ipynb"))
 
         # it should fail because of the solution and hidden test regions
-        run_nbgrader(["assign", "ps1", "--no-db"], retcode=1)
+        run_nbgrader(["generate_assignment", "ps1", "--no-db"], retcode=1)
 
         # it should pass now that we're not enforcing metadata
-        run_nbgrader(["assign", "ps1", "--no-db", "--no-metadata"])
+        run_nbgrader(["generate_assignment", "ps1", "--no-db", "--no-metadata"])
         assert os.path.exists(join(course_dir, "release", "ps1", "p1.ipynb"))
 
     def test_header(self, course_dir):
@@ -324,8 +350,19 @@ class TestNbGraderAssign(BaseTestApp):
         with open("nbgrader_config.py", "a") as fh:
             fh.write("""c.CourseDirectory.db_assignments = [dict(name="ps1")]\n""")
             fh.write("""c.IncludeHeaderFooter.header = "source/header.ipynb"\n""")
-        run_nbgrader(["assign", "ps1"])
+        run_nbgrader(["generate_assignment", "ps1"])
         assert os.path.isfile(join(course_dir, "release", "ps1", "foo.ipynb"))
 
-
-
+    def test_trailing_slash(self, course_dir):
+        """Can a single file be assigned?"""
+        self._empty_notebook(join(course_dir, 'source', 'ps1', 'foo.ipynb'))
+        if sys.platform == 'win32':
+            trailing_slash = "\\\\"
+            path = course_dir.replace("\\", "\\\\") + trailing_slash
+        else:
+            trailing_slash = "/"
+            path = course_dir + trailing_slash
+        with open("nbgrader_config.py", "a") as fh:
+            fh.write("""c.CourseDirectory.root = "{}"\n""".format(path))
+        run_nbgrader(["assign", "ps1"])
+        assert os.path.isfile(join(course_dir, "release", "ps1", "foo.ipynb"))

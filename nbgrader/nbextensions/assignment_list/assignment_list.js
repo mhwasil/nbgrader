@@ -227,10 +227,13 @@ define([
 
     AssignmentList.prototype.load_list_success = function (data) {
         this.clear_list();
+
         var len = data.length;
         for (var i=0; i<len; i++) {
             var element = $('<div/>');
-            var item = new Assignment(element, data[i], this.fetched_selector, $.proxy(this.handle_load_list, this), this.options);
+            var item = new Assignment(element, data[i], this.fetched_selector,
+                                      $.proxy(this.handle_load_list, this),
+                                      this.options);
             if (data[i]['status'] === 'released') {
                 this.released_element.append(element);
                 this.released_element.children('.list_placeholder').hide();
@@ -315,23 +318,32 @@ define([
 
     Assignment.prototype.make_row = function () {
         var row = $('<div/>').addClass('col-md-12');
-        row.append(this.make_link());
+        var link = this.make_link();
+        row.append(link);
         row.append($('<span/>').addClass('item_course col-sm-2').text(this.data.course_id));
-        if (this.data.status === 'submitted') {
-            row.append($('<span/>').addClass('item_status col-sm-4').text(this.data.timestamp));
-        } else {
-            row.append(this.make_button());
-        }
-        this.element.empty().append(row);
 
-        if (this.data.status === 'fetched') {
-            var id = this.escape_id();
-            var children = $('<div/>')
+        var id, children, element, child;
+        if (this.data.status === 'submitted') {
+            id = this.escape_id() + "-submissions";
+            children = $('<div/>')
+                .attr("id", id)
+                .addClass("panel-collapse list_container assignment-notebooks")
+                .attr("role", "tabpanel");
+
+            children.append($('<div/>').addClass('list_item row'));
+            for (var i=0; i<this.data.submissions.length; i++) {
+                element = $('<div/>');
+                child = new Submission(element, this.data.submissions[i], this.options);
+                children.append(element);
+            }
+
+        } else if (this.data.status === 'fetched') {
+            id = this.escape_id();
+            children = $('<div/>')
                 .attr("id", id)
                 .addClass("panel-collapse collapse list_container assignment-notebooks")
                 .attr("role", "tabpanel");
 
-            var element, child;
             children.append($('<div/>').addClass('list_item row'));
             for (var i=0; i<this.data.notebooks.length; i++) {
                 element = $('<div/>');
@@ -340,9 +352,10 @@ define([
                 child = new Notebook(element, this.data.notebooks[i], this.options);
                 children.append(element);
             }
-
-            this.element.append(children);
         }
+
+        row.append(this.make_button());
+        this.element.empty().append(row).append(children);
     };
 
     Assignment.prototype.make_link = function () {
@@ -454,9 +467,73 @@ define([
                 );
                 ajax(url, settings);
             });
+
+        } else if (this.data.status == 'submitted') {
+            button.text("Fetch Feedback");
+            button.click(function (e) {
+                var settings = {
+                    cache : false,
+                    data : {
+                        course_id: that.data.course_id,
+                        assignment_id: that.data.assignment_id
+                    },
+                    type : "POST",
+                    dataType : "json",
+                    success : $.proxy(that.on_refresh, that),
+                    error : function (xhr, status, error) {
+                        container.empty().text("Error fetching feedback.");
+                        utils.log_ajax_error(xhr, status, error);
+                    }
+                };
+                button.text('Fetching Feedback...');
+                button.attr('disabled', 'disabled');
+                var url = utils.url_path_join(
+                    that.base_url,
+                    'assignments',
+                    'fetch_feedback'
+                );
+                ajax(url, settings);
+            });
         }
 
         return container;
+    };
+
+
+    var Submission = function (element, data, options) {
+        this.element = $(element);
+        this.data = data;
+        this.options = options;
+        this.base_url = options.base_url || utils.get_body_data("baseUrl");
+        this.style();
+        this.make_row();
+    };
+
+    Submission.prototype.style = function () {
+        this.element.addClass('list_item').addClass("row");
+    };
+
+    Submission.prototype.make_row = function () {
+        var container = $('<div/>').addClass('col-md-12');
+        var status = $('<span/>').addClass('item_name col-sm-6');
+        status.append($("<span/>").text(this.data.timestamp));
+        if (this.data.has_local_feedback && !this.data.feedback_updated) {
+            var url = utils.url_path_join(
+                this.base_url, 'tree', this.data.local_feedback_path)
+            var link = $('<a/>')
+                .attr("href", url)
+                .attr("target", "_blank")
+                .text(" (view feedback)");
+            status.append(link);
+        } else if (this.data.has_exchange_feedback) {
+            status.append($("<span/>").text(" (feedback available to fetch)"));
+        } else {
+            status.append($("<span/>").text(""));
+        }
+        container.append(status);
+        container.append($('<span/>').addClass('item_course col-sm-2'));
+        container.append($('<span/>').addClass('item_status col-sm-4'));
+        this.element.append(container);
     };
 
     var Notebook = function (element, data, options) {
@@ -594,6 +671,7 @@ define([
         'CourseList': CourseList,
         'AssignmentList': AssignmentList,
         'Assignment': Assignment,
+        'Submission': Submission,
         'Notebook': Notebook
     };
 });

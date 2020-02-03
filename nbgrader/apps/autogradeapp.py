@@ -7,7 +7,9 @@ from traitlets import default
 from .baseapp import NbGrader, nbgrader_aliases, nbgrader_flags
 from ..converters import BaseConverter, Autograde, NbGraderException
 
-aliases = {}
+aliases = {
+    'course': 'CourseDirectory.course_id'
+}
 aliases.update(nbgrader_aliases)
 aliases.update({
 })
@@ -17,7 +19,8 @@ flags.update(nbgrader_flags)
 flags.update({
     'create': (
         {'Autograde': {'create_student': True}},
-        "Create an entry for the student in the database, if one does not already exist."
+        "Deprecated: Create an entry for the student in the database, if one does not already exist. "
+        "This is now the default."
     ),
     'no-execute': (
         {
@@ -56,12 +59,11 @@ class AutogradeApp(NbGrader):
 
             autograded/{student_id}/{assignment_id}/{notebook_id}.ipynb
 
-        The student IDs must already exist in the database. If they do not, you
-        can tell `nbgrader autograde` to add them on the fly by passing the
-        --create flag.
+        The student IDs will be created in the database if they don't already
+        exist.
 
         Note that the assignment must also be present in the database. If it is
-        not, you should first create it using `nbgrader assign`. Then, during
+        not, you should first create it using `nbgrader generate_assignment`. Then, during
         autograding, the cells that contain tests for the students' answers will
         be overwritten with the master version of the tests that is saved in the
         database (this prevents students from modifying the tests in order to

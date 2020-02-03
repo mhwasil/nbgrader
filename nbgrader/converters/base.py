@@ -15,7 +15,7 @@ from nbconvert.writers import FilesWriter
 from ..coursedir import CourseDirectory
 from ..utils import find_all_files, rmtree, remove
 from ..preprocessors.execute import UnresponsiveKernelError
-from ..nbgraderformat import SchemaMismatchError
+from ..nbgraderformat import SchemaTooOldError, SchemaTooNewError
 
 
 class NbGraderException(Exception):
@@ -36,16 +36,17 @@ class BaseConverter(LoggingConfigurable):
     permissions = Integer(
         help=dedent(
             """
-            Permissions to set on files output by nbgrader. The default is generally
-            read-only (444), with the exception of nbgrader assign and nbgrader feedback,
-            in which case the user also has write permission.
+            Permissions to set on files output by nbgrader. The default is
+            generally read-only (444), with the exception of nbgrader
+            generate_assignment and nbgrader generate_feedback, in which case
+            the user also has write permission.
             """
         )
     ).tag(config=True)
 
     @default("permissions")
     def _permissions_default(self):
-        return 444
+        return 664 if self.coursedir.groupshared else 444
 
     coursedir = Instance(CourseDirectory, allow_none=True)
 
@@ -171,6 +172,11 @@ class BaseConverter(LoggingConfigurable):
         initialization was successful).
 
         """
+        if self.coursedir.student_id_exclude:
+            exclude_ids = self.coursedir.student_id_exclude.split(',')
+            if student_id in exclude_ids:
+                return False
+
         dest = os.path.normpath(self._format_dest(assignment_id, student_id))
 
         # the destination doesn't exist, so we haven't processed it
@@ -248,6 +254,29 @@ class BaseConverter(LoggingConfigurable):
         for dirname, _, filenames in os.walk(dest):
             for filename in filenames:
                 os.chmod(os.path.join(dirname, filename), permissions)
+            # If groupshared, set dir permissions - see comment below.
+            st_mode = os.stat(dirname).st_mode
+            if self.coursedir.groupshared and st_mode & 0o2770 != 0o2770:
+                try:
+                    os.chmod(dirname, (st_mode|0o2770) & 0o2777)
+                except PermissionError:
+                    self.log.warning("Could not update permissions of %s to make it groupshared", dirname)
+        # If groupshared, set write permissions on directories.  Directories
+        # are created within ipython_genutils.path.ensure_dir_exists via
+        # nbconvert.writer, (unless there are supplementary files) with a
+        # default mode of 755 and there is no way to pass the mode arguments
+        # all the way to there!  So we have to walk and fix.
+        if self.coursedir.groupshared:
+            # Root may be created in this step, and is not included above.
+            rootdir = self.coursedir.format_path(self._output_directory, '.', '.')
+            # Add 2770 to existing dir permissions (don't unconditionally override)
+            st_mode = os.stat(rootdir).st_mode
+            if st_mode & 0o2770 != 0o2770:
+                try:
+                    os.chmod(rootdir, (st_mode|0o2770) & 0o2777)
+                except PermissionError:
+                    self.log.warning("Could not update permissions of %s to make it groupshared", rootdir)
+
 
     def convert_single_notebook(self, notebook_filename):
         """Convert a single notebook.
@@ -334,12 +363,22 @@ class BaseConverter(LoggingConfigurable):
                 self.log.error(msg)
                 raise NbGraderException(msg)
 
-            except SchemaMismatchError:
+            except SchemaTooOldError:
                 _handle_failure(gd)
                 msg = (
                     "One or more notebooks in the assignment use an old version \n"
                     "of the nbgrader metadata format. Please **back up your class files \n"
                     "directory** and then update the metadata using:\n\nnbgrader update .\n"
+                )
+                self.log.error(msg)
+                raise NbGraderException(msg)
+
+            except SchemaTooNewError:
+                _handle_failure(gd)
+                msg = (
+                    "One or more notebooks in the assignment use an newer version \n"
+                    "of the nbgrader metadata format. Please update your version of \n"
+                    "nbgrader to the latest version to be able to use this notebook.\n"
                 )
                 self.log.error(msg)
                 raise NbGraderException(msg)

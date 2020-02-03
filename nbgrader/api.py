@@ -41,7 +41,6 @@ class InvalidEntry(ValueError):
 class MissingEntry(ValueError):
     pass
 
-
 class Assignment(Base):
     """Database representation of the master/source version of an assignment."""
 
@@ -55,6 +54,10 @@ class Assignment(Base):
 
     #: (Optional) Duedate for the assignment in datetime format, with UTC timezone
     duedate = Column(DateTime())
+
+    #: The course for this assignment
+    course_id = Column(String(128), ForeignKey('course.id'), nullable=False)
+    course = relationship("Course", back_populates="assignments")
 
     #: A collection of notebooks contained in this assignment, represented
     #: by :class:`~nbgrader.api.Notebook` objects
@@ -80,6 +83,11 @@ class Assignment(Base):
     #: calculated from the :attr:`~nbgrader.api.Notebook.max_written_score` of
     #: each notebook
     max_written_score = None
+
+    def __init__(self, name, duedate=None, course_id="default_course", **kwargs):
+        self.name = name
+        self.duedate = duedate
+        self.course_id = course_id
 
     def to_dict(self):
         """Convert the assignment object to a JSON-friendly dictionary
@@ -454,6 +462,10 @@ class Student(Base):
     #: of each assignment.
     max_score = None
 
+    #: The LMS user ID, this is mainly for identifying students in your LMS system
+    #: and was added so teachers and TA's can easily send grades to a LMS such as Canvas and Blackboard.
+    lms_user_id = Column(String(128), nullable=True)
+
     def to_dict(self):
         """Convert the student object to a JSON-friendly dictionary
         representation.
@@ -465,7 +477,8 @@ class Student(Base):
             "last_name": self.last_name,
             "email": self.email,
             "score": self.score,
-            "max_score": self.max_score
+            "max_score": self.max_score,
+            "lms_user_id": self.lms_user_id
         }
 
     def __repr__(self):
@@ -961,7 +974,18 @@ class Comment(Base):
         return "Comment<{}/{}/{} for {}>".format(
             self.assignment.name, self.notebook.name, self.name, self.student.id)
 
-# Needs manual grade
+class Course(Base):
+    """Table to store the courses"""
+
+    __tablename__ = "course"
+
+    id = Column(String(128), unique=True, primary_key=True, nullable=False)
+    assignments = relationship("Assignment", back_populates="course")
+
+    def __repr__(self):
+        return "Course<{}>".format(self.id)
+
+## Needs manual grade
 
 SubmittedNotebook.needs_manual_grade = column_property(
     exists().where(and_(
@@ -1297,13 +1321,19 @@ class Gradebook(object):
 
     """
 
-    def __init__(self, db_url):
+    def __init__(self, db_url, course_id="default_course", authenticator=None):
         """Initialize the connection to the database.
 
         Parameters
         ----------
         db_url : string
             The URL to the database, e.g. ``sqlite:///grades.db``
+        course_id : string, optional
+            identifier of the course necessary for supporting multiple classes
+            default course_id is '' to be consistent with :class:~`nbgrader.apps.api.NbGraderAPI`
+        authenticator : :class:~`nbgrader.auth.BaseAuthenticator`
+            An authenticator instance for communicating with an external
+            database.
 
         """
         # create the connection to the database
@@ -1320,6 +1350,10 @@ class Gradebook(object):
             self.db.execute("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL);")
             self.db.execute("INSERT INTO alembic_version (version_num) VALUES ('{}');".format(alembic_version))
             self.db.commit()
+
+        self.check_course(course_id=course_id)
+        self.course_id = course_id
+        self.authenticator = authenticator
 
     def __enter__(self):
         return self
@@ -1339,7 +1373,40 @@ class Gradebook(object):
         self.db.remove()
         self.engine.dispose()
 
-    # Students
+    def check_course(self, course_id="default_course", **kwargs):
+        """Set the course id
+
+        Parameters
+        ----------
+        course_id : string
+            The unique id of the course
+        `**kwargs` : dict
+            other keyword arguments to the :class:`~nbgrader.api.Course` object
+
+        Returns
+        -------
+        course : :class:`~nbgrader.api.Course`
+
+        """
+        course = None
+        
+        try:
+            course = self.db.query(Course)\
+                .filter(Course.id==course_id)\
+                .one()
+        except NoResultFound:
+            if course_id:
+                new_course = Course(id=course_id, **kwargs)
+                course = self.db.add(new_course)
+
+        try:
+            self.db.commit()
+        except (IntegrityError, FlushError) as e:
+            self.db.rollback()
+            raise InvalidEntry(*e.args)
+        return course
+
+    #### Students
 
     @property
     def students(self):
@@ -1363,6 +1430,8 @@ class Gradebook(object):
         student : :class:`~nbgrader.api.Student`
 
         """
+        if self.authenticator:
+            self.authenticator.add_student_to_course(student_id, self.course_id)
 
         student = Student(id=student_id, **kwargs)
         self.db.add(student)
@@ -1371,6 +1440,7 @@ class Gradebook(object):
         except (IntegrityError, FlushError) as e:
             self.db.rollback()
             raise InvalidEntry(*e.args)
+
         return student
 
     def find_student(self, student_id):
@@ -1396,13 +1466,13 @@ class Gradebook(object):
 
         return student
 
-    def update_or_create_student(self, name, **kwargs):
+    def update_or_create_student(self, student_id, **kwargs):
         """Update an existing student, or create it if it doesn't exist.
 
         Parameters
         ----------
-        name : string
-            the name of the student
+        student_id : string
+            The unique id of the student
         `**kwargs`
             additional keyword arguments for the :class:`~nbgrader.api.Student` object
 
@@ -1413,10 +1483,16 @@ class Gradebook(object):
         """
 
         try:
-            student = self.find_student(name)
+            student = self.find_student(student_id)
         except MissingEntry:
-            student = self.add_student(name, **kwargs)
+            student = self.add_student(student_id, **kwargs)
         else:
+            # Make sure the student is in the course, even if it's somehow
+            # already in the database.
+            if self.authenticator:
+                self.authenticator.add_student_to_course(
+                    student_id, self.course_id)
+
             for attr in kwargs:
                 setattr(student, attr, kwargs[attr])
             try:
@@ -1427,20 +1503,24 @@ class Gradebook(object):
 
         return student
 
-    def remove_student(self, name):
+    def remove_student(self, student_id):
         """Deletes an existing student from the gradebook, including any
         submissions the might be associated with that student.
 
         Parameters
         ----------
-        name : string
-            the name of the student to delete
+        student_id : string
+            The unique id of the student
 
         """
-        student = self.find_student(name)
+        if self.authenticator:
+            self.authenticator.remove_student_from_course(
+                student_id, self.course_id)
+
+        student = self.find_student(student_id)
 
         for submission in student.submissions:
-            self.remove_submission(submission.assignment.name, name)
+            self.remove_submission(submission.assignment.name, student_id)
 
         self.db.delete(student)
 
@@ -1476,6 +1556,8 @@ class Gradebook(object):
         """
         if 'duedate' in kwargs:
             kwargs['duedate'] = utils.parse_utc(kwargs['duedate'])
+        if 'course_id' not in kwargs:
+            kwargs['course_id'] = self.course_id
         assignment = Assignment(name=name, **kwargs)
         self.db.add(assignment)
         try:
@@ -2869,7 +2951,7 @@ class Gradebook(object):
             A list of dictionaries, one per student
 
         """
-        total_score, = self.db.query(func.sum(Assignment.max_score)).one()
+        total_score, = self.db.query(Assignment.max_score).one()
         if len(self.assignments) > 0 and total_score > 0:
             # subquery the scores
             scores = self.db.query(
@@ -2884,14 +2966,14 @@ class Gradebook(object):
             students = self.db.query(
                 Student.id, Student.first_name, Student.last_name,
                 Student.email, _scores,
-                func.sum(Assignment.max_score)
+                func.sum(Assignment.max_score), Student.lms_user_id
             ).outerjoin(scores, Student.id == scores.c.id)\
              .group_by(
                  Student.id, Student.first_name, Student.last_name,
-                 Student.email, _scores)\
+                 Student.email, _scores, Student.lms_user_id)\
              .all()
 
-            keys = ["id", "first_name", "last_name", "email", "score", "max_score"]
+            keys = ["id", "first_name", "last_name", "email", "score", "max_score", "lms_user_id"]
             return [dict(zip(keys, x)) for x in students]
 
         else:

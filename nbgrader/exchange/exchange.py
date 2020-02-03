@@ -9,11 +9,12 @@ from textwrap import dedent
 from dateutil.tz import gettz
 from dateutil import tz
 from traitlets.config import LoggingConfigurable
-from traitlets import Unicode, Bool, Instance, default, validate
+from traitlets import Unicode, Bool, Instance, Type, default, validate
 from jupyter_core.paths import jupyter_data_dir
 
-from ..utils import check_directory
+from ..utils import check_directory, ignore_patterns, self_owned
 from ..coursedir import CourseDirectory
+from ..auth import Authenticator
 
 
 class ExchangeError(Exception):
@@ -22,22 +23,15 @@ class ExchangeError(Exception):
 
 class Exchange(LoggingConfigurable):
 
-    course_id = Unicode(
-        '',
+    assignment_dir = Unicode(
+        ".",
         help=dedent(
             """
-            A key that is unique per instructor and course. This MUST be
-            specified, either by setting the config option, or using the
-            --course option on the command line.
+            Local path for storing student assignments.  Defaults to '.'
+            which is normally Jupyter's notebook_dir.
             """
         )
     ).tag(config=True)
-
-    @validate('course_id')
-    def _validate_course_id(self, proposal):
-        if proposal['value'].strip() != proposal['value']:
-            self.log.warning("course_id '%s' has trailing whitespace, stripping it away", proposal['value'])
-        return proposal['value'].strip()
 
     timezone = Unicode(
         "UTC",
@@ -76,9 +70,11 @@ class Exchange(LoggingConfigurable):
     ).tag(config=True)
 
     coursedir = Instance(CourseDirectory, allow_none=True)
+    authenticator = Instance(Authenticator, allow_none=True)
 
-    def __init__(self, coursedir=None, **kwargs):
+    def __init__(self, coursedir=None, authenticator=None, **kwargs):
         self.coursedir = coursedir
+        self.authenticator = authenticator
         super(Exchange, self).__init__(**kwargs)
 
     def fail(self, msg):
@@ -122,15 +118,48 @@ class Exchange(LoggingConfigurable):
         """Actually do the file transfer."""
         raise NotImplementedError
 
-    def do_copy(self, src, dest):
-        """Copy the src dir to the dest dir omitting the self.coursedir.ignore globs."""
-        shutil.copytree(src, dest, ignore=shutil.ignore_patterns(*self.coursedir.ignore))
+    def do_copy(self, src, dest, log=None):
+        """
+        Copy the src dir to the dest dir, omitting excluded
+        file/directories, non included files, and too large files, as
+        specified by the options coursedir.ignore, coursedir.include
+        and coursedir.max_file_size.
+        """
+        shutil.copytree(src, dest,
+                        ignore=ignore_patterns(exclude=self.coursedir.ignore,
+                                               include=self.coursedir.include,
+                                               max_file_size=self.coursedir.max_file_size,
+                                               log=self.log))
+        # copytree copies access mode too - so we must add go+rw back to it if
+        # we are in groupshared.
+        if self.coursedir.groupshared:
+            for dirname, _, filenames in os.walk(dest):
+                # dirs become ug+rwx
+                st_mode = os.stat(dirname).st_mode
+                if st_mode & 0o2770 != 0o2770:
+                    try:
+                        os.chmod(dirname, (st_mode|0o2770) & 0o2777)
+                    except PermissionError:
+                        self.log.warning("Could not update permissions of %s to make it groupshared", dirname)
+
+                for filename in filenames:
+                    filename = os.path.join(dirname, filename)
+                    st_mode = os.stat(filename).st_mode
+                    if st_mode & 0o660 != 0o660:
+                        try:
+                            os.chmod(filename, (st_mode|0o660) & 0o777)
+                        except PermissionError:
+                            self.log.warning("Could not update permissions of %s to make it groupshared", filename)
 
     def start(self):
         if sys.platform == 'win32':
             self.fail("Sorry, the exchange is not available on Windows.")
 
-        self.ensure_root()
+        if not self.coursedir.groupshared:
+            # This just makes sure that directory is o+rwx.  In group shared
+            # case, it is up to admins to ensure that instructors can write
+            # there.
+            self.ensure_root()
         self.set_timestamp()
 
         self.init_src()
@@ -151,3 +180,14 @@ class Exchange(LoggingConfigurable):
             self.log.error("Did you mean: %s", scores[-1][1])
 
         raise ExchangeError(msg)
+
+    def ensure_directory(self, path, mode):
+        """Ensure that the path exists, has the right mode and is self owned."""
+        if not os.path.isdir(path):
+            os.makedirs(path)
+            # For some reason, Python won't create a directory with a mode of 0o733
+            # so we have to create and then chmod.
+            os.chmod(path, mode)
+        else:
+            if not self.coursedir.groupshared and not self_owned(path):
+                self.fail("You don't own the directory: {}".format(path))

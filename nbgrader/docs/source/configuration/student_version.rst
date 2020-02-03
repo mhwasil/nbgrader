@@ -4,12 +4,12 @@ Customizing how the student version of an assignment looks
 .. seealso::
 
     :doc:`/user_guide/creating_and_grading_assignments`
-        Documentation for ``nbgrader assign``, ``nbgrader autograde``, and ``nbgrader feedback``.
+        Documentation for ``nbgrader generate_assignment``, ``nbgrader autograde``, and ``nbgrader generate_feedback``.
 
-    :doc:`/command_line_tools/nbgrader-assign`
-        Command line options for ``nbgrader assign``
+    :doc:`/command_line_tools/nbgrader-generate-assignment`
+        Command line options for ``nbgrader generate_assignment``
 
-    :doc:`config_options`
+    :doc:`nbgrader_config`
         Details on ``nbgrader_config.py``
 
 "Autograded answer" cells
@@ -18,7 +18,7 @@ Customizing how the student version of an assignment looks
 Default behavior
 ^^^^^^^^^^^^^^^^
 
-By default, ``nbgrader assign`` will replace regions beginning with
+By default, ``nbgrader generate_assignment`` will replace regions beginning with
 ``BEGIN SOLUTION`` and ``END SOLUTION`` comment delimeters with:
 
 .. code:: python
@@ -80,7 +80,7 @@ Changing the defaults
 
 If you need to change these defaults (e.g., if your class doesn't use Python,
 or isn't taught in English), the values can be configured in the
-:doc:`nbgrader_config.py <config_options>` file. Most relevant is the
+:doc:`nbgrader_config.py <nbgrader_config>` file. Most relevant is the
 ``code_stub`` option to the ``ClearSolutions`` preprocessor, which is the part
 of nbgrader that actually clears the solutions when producing the student
 version of the notebook.
@@ -132,7 +132,7 @@ can be configured through the ``ClearSolutions.text_stub`` option:
 Default behavior
 ^^^^^^^^^^^^^^^^
 
-By default, ``nbgrader assign`` will remove tests wrapped within the
+By default, ``nbgrader generate_assignment`` will remove tests wrapped within the
 ``BEGIN HIDDEN TESTS`` and ``END HIDDEN TESTS`` comment delimeters, for
 example:
 
@@ -189,7 +189,7 @@ Changing the defaults
 
 If you need to change these defaults (e.g., if your class isn't taught in
 English), the values can be configured in the :doc:`nbgrader_config.py
-<config_options>` file. Most relevant are the options to the
+<nbgrader_config>` file. Most relevant are the options to the
 ``ClearHiddenTests`` preprocessor, which is the part of nbgrader that actually
 removes the tests when producing the student version of the notebook.
 

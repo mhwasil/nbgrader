@@ -4,13 +4,14 @@ import sys
 
 from tornado import web
 
-from .base import BaseHandler, check_xsrf
+from .base import BaseHandler, check_xsrf, check_notebook_dir
 from ...api import MissingEntry
 
 
 class ManageAssignmentsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self):
         html = self.render(
             "manage_assignments.tpl",
@@ -26,6 +27,7 @@ class ManageAssignmentsHandler(BaseHandler):
 class ManageSubmissionsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, assignment_id):
         html = self.render(
             "manage_submissions.tpl",
@@ -38,9 +40,11 @@ class ManageSubmissionsHandler(BaseHandler):
 class GradebookAssignmentsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self):
+        view = self.get_argument('view', 'notebook')
         html = self.render(
-            "gradebook_assignments.tpl",
+            "{}_view/gradebook_assignments.tpl".format(view),
             base_url=self.base_url)
         self.write(html)
 
@@ -48,10 +52,23 @@ class GradebookAssignmentsHandler(BaseHandler):
 class GradebookNotebooksHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, assignment_id):
+        view = self.get_argument('view', 'notebook')
         html = self.render(
-            "gradebook_notebooks.tpl",
+            "{}_view/gradebook_notebooks.tpl".format(view),
             assignment_id=assignment_id,
+            base_url=self.base_url)
+        self.write(html)
+
+class GradebookTasksHandler(BaseHandler):
+    @web.authenticated
+    @check_xsrf
+    def get(self, assignment_id, notebook_id):
+        html = self.render(
+            "task_view/gradebook_tasks.tpl",
+            assignment_id=assignment_id,
+            notebook_id=notebook_id,
             base_url=self.base_url)
         self.write(html)
 
@@ -59,12 +76,16 @@ class GradebookNotebooksHandler(BaseHandler):
 class GradebookNotebookSubmissionsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, assignment_id, notebook_id):
+        view = self.get_argument('view', 'notebook')
+        task_id = self.get_argument('filter', '')
         html = self.render(
-            "gradebook_notebook_submissions.tpl",
+            "{}_view/gradebook_notebook_submissions.tpl".format(view),
             assignment_id=assignment_id,
             notebook_id=notebook_id,
-            base_url=self.base_url
+            base_url=self.base_url,
+            task_id = task_id
         )
         self.write(html)
 
@@ -72,6 +93,7 @@ class GradebookNotebookSubmissionsHandler(BaseHandler):
 class SubmissionHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, submission_id):
         try:
             submission = self.gradebook.find_submission_notebook_by_id(submission_id)
@@ -94,6 +116,9 @@ class SubmissionHandler(BaseHandler):
         indices = self.api.get_notebook_submission_indices(assignment_id, notebook_id)
         ix = indices.get(submission.id, -2)
 
+        view = self.get_argument('view', 'notebook')
+        task_id = self.get_argument('task', '')
+
         resources = {
             'assignment_id': assignment_id,
             'notebook_id': notebook_id,
@@ -105,7 +130,8 @@ class SubmissionHandler(BaseHandler):
             'student': student_id,
             'last_name': submission.student.last_name,
             'first_name': submission.student.first_name,
-            'notebook_path': self.url_prefix + '/' + relative_path
+            'notebook_path': self.url_prefix + '/' + relative_path,
+            'keyword': task_id
         }
 
         if not os.path.exists(filename):
@@ -122,8 +148,10 @@ class SubmissionHandler(BaseHandler):
 
 class SubmissionNavigationHandler(BaseHandler):
 
-    def _assignment_notebook_list_url(self, assignment_id, notebook_id):
-        return '{}/formgrader/gradebook/{}/{}'.format(self.base_url, assignment_id, notebook_id)
+    def _assignment_notebook_list_url(self, assignment_id, notebook_id, task_id):
+        if len(task_id) < 1:
+            return '{}/formgrader/gradebook/{}/{}'.format(self.base_url, assignment_id, notebook_id)
+        return '{}/formgrader/gradebook/{}/{}/?view=task&filter={}'.format(self.base_url, assignment_id, notebook_id, task_id)
 
     def _submission_url(self, submission_id):
         url = '{}/formgrader/submissions/{}'.format(self.base_url, submission_id)
@@ -145,54 +173,56 @@ class SubmissionNavigationHandler(BaseHandler):
         incorrect_ids = sorted(incorrect_ids)
         return incorrect_ids
 
-    def _next(self, assignment_id, notebook_id, submission):
+    def _next(self, assignment_id, notebook_id, submission, task_id):
         # find next submission
         submission_ids = self._get_submission_ids(assignment_id, notebook_id)
         ix = submission_ids.index(submission.id)
         if ix == (len(submission_ids) - 1):
-            return self._assignment_notebook_list_url(assignment_id, notebook_id)
+            return self._assignment_notebook_list_url(assignment_id, notebook_id, task_id)
         else:
-            return self._submission_url(submission_ids[ix + 1])
+            return self._submission_url(submission_ids[ix + 1]) + "?task={}".format(task_id)
 
-    def _prev(self, assignment_id, notebook_id, submission):
+    def _prev(self, assignment_id, notebook_id, submission, task_id):
         # find previous submission
         submission_ids = self._get_submission_ids(assignment_id, notebook_id)
         ix = submission_ids.index(submission.id)
         if ix == 0:
-            return self._assignment_notebook_list_url(assignment_id, notebook_id)
+            return self._assignment_notebook_list_url(assignment_id, notebook_id, task_id)
         else:
-            return self._submission_url(submission_ids[ix - 1])
+            return self._submission_url(submission_ids[ix - 1]) + "?task={}".format(task_id)
 
-    def _next_incorrect(self, assignment_id, notebook_id, submission):
+    def _next_incorrect(self, assignment_id, notebook_id, submission, task_id):
         # find next incorrect submission
         submission_ids = self._get_incorrect_submission_ids(assignment_id, notebook_id, submission)
         ix_incorrect = submission_ids.index(submission.id)
         if ix_incorrect == (len(submission_ids) - 1):
-            return self._assignment_notebook_list_url(assignment_id, notebook_id)
+            return self._assignment_notebook_list_url(assignment_id, notebook_id, task_id)
         else:
-            return self._submission_url(submission_ids[ix_incorrect + 1])
+            return self._submission_url(submission_ids[ix_incorrect + 1]) + "?task={}".format(task_id)
 
-    def _prev_incorrect(self, assignment_id, notebook_id, submission):
+    def _prev_incorrect(self, assignment_id, notebook_id, submission, task_id):
         # find previous incorrect submission
         submission_ids = self._get_incorrect_submission_ids(assignment_id, notebook_id, submission)
         ix_incorrect = submission_ids.index(submission.id)
         if ix_incorrect == 0:
-            return self._assignment_notebook_list_url(assignment_id, notebook_id)
+            return self._assignment_notebook_list_url(assignment_id, notebook_id, task_id)
         else:
-            return self._submission_url(submission_ids[ix_incorrect - 1])
+            return self._submission_url(submission_ids[ix_incorrect - 1]) + "?task={}".format(task_id)
 
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, submission_id, action):
         try:
             submission = self.gradebook.find_submission_notebook_by_id(submission_id)
             assignment_id = submission.assignment.assignment.name
             notebook_id = submission.notebook.name
+            task_id = self.get_argument('task', '')
         except MissingEntry:
             raise web.HTTPError(404, "Invalid submission: {}".format(submission_id))
 
         handler = getattr(self, '_{}'.format(action))
-        self.redirect(handler(assignment_id, notebook_id, submission), permanent=False)
+        self.redirect(handler(assignment_id, notebook_id, submission, task_id), permanent=False)
 
 
 class SubmissionFilesHandler(web.StaticFileHandler, BaseHandler):
@@ -217,6 +247,7 @@ class SubmissionFilesHandler(web.StaticFileHandler, BaseHandler):
 
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, *args, **kwargs):
         return super(SubmissionFilesHandler, self).get(*args, **kwargs)
 
@@ -224,6 +255,7 @@ class SubmissionFilesHandler(web.StaticFileHandler, BaseHandler):
 class ManageStudentsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self):
         html = self.render(
             "manage_students.tpl",
@@ -234,6 +266,7 @@ class ManageStudentsHandler(BaseHandler):
 class ManageStudentsAssignmentsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, student_id):
         html = self.render(
             "manage_students_assignments.tpl",
@@ -246,6 +279,7 @@ class ManageStudentsAssignmentsHandler(BaseHandler):
 class ManageStudentNotebookSubmissionsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, student_id, assignment_id):
         html = self.render(
             "manage_students_notebook_submissions.tpl",
@@ -277,6 +311,7 @@ default_handlers = [
 
     (r"/formgrader/gradebook/?", GradebookAssignmentsHandler),
     (r"/formgrader/gradebook/([^/]+)/?", GradebookNotebooksHandler),
+    (r"/formgrader/gradebook/tasks/([^/]+)/([^/]+)/?", GradebookTasksHandler),
     (r"/formgrader/gradebook/([^/]+)/([^/]+)/?", GradebookNotebookSubmissionsHandler),
 
     (r"/formgrader/manage_students/?", ManageStudentsHandler),

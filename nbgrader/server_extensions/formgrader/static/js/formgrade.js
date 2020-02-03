@@ -124,7 +124,7 @@ FormGrader.prototype.loadComments = function () {
 };
 
 FormGrader.prototype.navigateTo = function (location) {
-    return this.base_url + '/submissions/' + this.submission_id + '/' + location + '?index=' + this.current_index;
+    return this.base_url + '/submissions/' + this.submission_id + '/' + location + '?index=' + this.current_index + "&task=" + task_id;
 };
 
 FormGrader.prototype.nextAssignment = function () {

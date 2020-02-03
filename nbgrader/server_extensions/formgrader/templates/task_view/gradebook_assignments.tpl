@@ -1,12 +1,15 @@
-{%- extends 'gradebook_base.tpl' -%}
+{%- extends 'task_view/gradebook_base.tpl' -%}
 
 {%- block head -%}
+<script>
+var view = "task";
+</script>
 <script src="{{ base_url }}/formgrader/static/js/gradebook_assignments.js"></script>
 {%- endblock -%}
 
 {%- block breadcrumbs -%}
 <ol class="breadcrumb">
-  <li class="active">Manual Grading</li>
+  <li class="active">Manual Grading (Task View)</li>
 </ol>
 {%- endblock -%}
 

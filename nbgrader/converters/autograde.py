@@ -7,7 +7,7 @@ from traitlets import Bool, List, Dict
 from .base import BaseConverter, NbGraderException
 from ..preprocessors import (
     AssignLatePenalties, ClearOutput, DeduplicateIds, OverwriteCells, SaveAutoGrades,
-    Execute, LimitOutput, OverwriteKernelspec, CheckCellMetadata)
+    Execute, LimitOutput, OverwriteKernelspec, CheckCellMetadata, Unscramble)
 from ..api import Gradebook, MissingEntry
 from .. import utils
 
@@ -15,7 +15,7 @@ from .. import utils
 class Autograde(BaseConverter):
 
     create_student = Bool(
-        False,
+        True,
         help=dedent(
             """
             Whether to create the student at runtime if it does not
@@ -55,7 +55,8 @@ class Autograde(BaseConverter):
         DeduplicateIds,
         OverwriteKernelspec,
         OverwriteCells,
-        CheckCellMetadata
+        CheckCellMetadata,
+        Unscramble
     ])
     autograde_preprocessors = List([
         Execute,
@@ -81,11 +82,11 @@ class Autograde(BaseConverter):
             if 'id' in student:
                 del student['id']
             self.log.info("Creating/updating student with ID '%s': %s", student_id, student)
-            with Gradebook(self.coursedir.db_url) as gb:
+            with Gradebook(self.coursedir.db_url, self.coursedir.course_id) as gb:
                 gb.update_or_create_student(student_id, **student)
 
         else:
-            with Gradebook(self.coursedir.db_url) as gb:
+            with Gradebook(self.coursedir.db_url, self.coursedir.course_id) as gb:
                 try:
                     gb.find_student(student_id)
                 except MissingEntry:
@@ -94,7 +95,7 @@ class Autograde(BaseConverter):
                     raise NbGraderException(msg)
 
         # make sure the assignment exists
-        with Gradebook(self.coursedir.db_url) as gb:
+        with Gradebook(self.coursedir.db_url, self.coursedir.course_id) as gb:
             try:
                 gb.find_assignment(assignment_id)
             except MissingEntry:
@@ -105,7 +106,7 @@ class Autograde(BaseConverter):
         # try to read in a timestamp from file
         src_path = self._format_source(assignment_id, student_id)
         timestamp = self.coursedir.get_existing_timestamp(src_path)
-        with Gradebook(self.coursedir.db_url) as gb:
+        with Gradebook(self.coursedir.db_url, self.coursedir.course_id) as gb:
             if timestamp:
                 submission = gb.update_or_create_submission(
                     assignment_id, student_id, timestamp=timestamp)
@@ -137,7 +138,7 @@ class Autograde(BaseConverter):
 
         # ignore notebooks that aren't in the database
         notebooks = []
-        with Gradebook(self.coursedir.db_url) as gb:
+        with Gradebook(self.coursedir.db_url, self.coursedir.course_id) as gb:
             for notebook in self.notebooks:
                 notebook_id = os.path.splitext(os.path.basename(notebook))[0]
                 try:
@@ -149,13 +150,13 @@ class Autograde(BaseConverter):
                     notebooks.append(notebook)
         self.notebooks = notebooks
         if len(self.notebooks) == 0:
-            msg = "No notebooks found, did you forget to run 'nbgrader assign'?"
+            msg = "No notebooks found, did you forget to run 'nbgrader generate_assignment'?"
             self.log.error(msg)
             raise NbGraderException(msg)
 
         # check for missing notebooks and give them a score of zero if they
         # do not exist
-        with Gradebook(self.coursedir.db_url) as gb:
+        with Gradebook(self.coursedir.db_url, self.coursedir.course_id) as gb:
             assignment = gb.find_assignment(assignment_id)
             for notebook in assignment.notebooks:
                 path = os.path.join(self.coursedir.format_path(

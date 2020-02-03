@@ -16,7 +16,8 @@ from jupyter_core.paths import jupyter_config_path
 
 from ...apps import NbGrader
 from ...coursedir import CourseDirectory
-from ...exchange import ExchangeList, ExchangeFetch, ExchangeSubmit
+from ...exchange import ExchangeList, ExchangeFetchAssignment, ExchangeFetchFeedback, ExchangeSubmit
+from ...auth import Authenticator
 from ... import __version__ as nbgrader_version
 
 
@@ -33,11 +34,6 @@ def chdir(dirname):
 
 class AssignmentList(LoggingConfigurable):
 
-    assignment_dir = Unicode('', help='Directory where the nbgrader commands should be run')
-    @default("assignment_dir")
-    def _assignment_dir_default(self):
-        return self.parent.notebook_dir
-
     def load_config(self):
         paths = jupyter_config_path()
         paths.insert(0, os.getcwd())
@@ -53,15 +49,33 @@ class AssignmentList(LoggingConfigurable):
 
         return full_config
 
+    @contextlib.contextmanager
+    def get_assignment_dir_config(self):
+        # first get the exchange assignment directory
+        with chdir(self.parent.notebook_dir):
+            config = self.load_config()
+
+        lister = ExchangeList(config=config)
+        assignment_dir = lister.assignment_dir
+
+        # now cd to the full assignment directory and load the config again
+        with chdir(assignment_dir):
+            for new_config in NbGrader._load_config_files("nbgrader_config", path=[os.getcwd()], log=self.log):
+                config.merge(new_config)
+            yield config
+
     def list_released_assignments(self, course_id=None):
-        with chdir(self.assignment_dir):
+        with self.get_assignment_dir_config() as config:
             try:
-                config = self.load_config()
                 if course_id:
-                    config.Exchange.course_id = course_id
+                    config.CourseDirectory.course_id = course_id
 
                 coursedir = CourseDirectory(config=config)
-                lister = ExchangeList(coursedir=coursedir, config=config)
+                authenticator = Authenticator(config=config)
+                lister = ExchangeList(
+                    coursedir=coursedir,
+                    authenticator=authenticator,
+                    config=config)
                 assignments = lister.start()
 
             except:
@@ -74,9 +88,9 @@ class AssignmentList(LoggingConfigurable):
             else:
                 for assignment in assignments:
                     if assignment['status'] == 'fetched':
-                        assignment['path'] = os.path.relpath(assignment['path'], self.assignment_dir)
+                        assignment['path'] = os.path.relpath(assignment['path'], self.parent.notebook_dir)
                         for notebook in assignment['notebooks']:
-                            notebook['path'] = os.path.relpath(notebook['path'], self.assignment_dir)
+                            notebook['path'] = os.path.relpath(notebook['path'], self.parent.notebook_dir)
                 retvalue = {
                     "success": True,
                     "value": sorted(assignments, key=lambda x: (x['course_id'], x['assignment_id']))
@@ -85,15 +99,18 @@ class AssignmentList(LoggingConfigurable):
         return retvalue
 
     def list_submitted_assignments(self, course_id=None):
-        with chdir(self.assignment_dir):
+        with self.get_assignment_dir_config() as config:
             try:
-                config = self.load_config()
                 config.ExchangeList.cached = True
                 if course_id:
-                    config.Exchange.course_id = course_id
+                    config.CourseDirectory.course_id = course_id
 
                 coursedir = CourseDirectory(config=config)
-                lister = ExchangeList(coursedir=coursedir, config=config)
+                authenticator = Authenticator(config=config)
+                lister = ExchangeList(
+                    coursedir=coursedir,
+                    authenticator=authenticator,
+                    config=config)
                 assignments = lister.start()
 
             except:
@@ -104,9 +121,14 @@ class AssignmentList(LoggingConfigurable):
                 }
 
             else:
+                for assignment in assignments:
+                    assignment["submissions"] = sorted(
+                        assignment["submissions"],
+                        key=lambda x: x["timestamp"])
+                assignments = sorted(assignments, key=lambda x: x["assignment_id"])
                 retvalue = {
                     "success": True,
-                    "value": sorted(assignments, key=lambda x: x['timestamp'], reverse=True)
+                    "value": assignments
                 }
 
         return retvalue
@@ -140,14 +162,18 @@ class AssignmentList(LoggingConfigurable):
         return retvalue
 
     def fetch_assignment(self, course_id, assignment_id):
-        with chdir(self.assignment_dir):
+        with self.get_assignment_dir_config() as config:
             try:
                 config = self.load_config()
-                config.Exchange.course_id = course_id
+                config.CourseDirectory.course_id = course_id
                 config.CourseDirectory.assignment_id = assignment_id
 
                 coursedir = CourseDirectory(config=config)
-                fetch = ExchangeFetch(coursedir=coursedir, config=config)
+                authenticator = Authenticator(config=config)
+                fetch = ExchangeFetchAssignment(
+                    coursedir=coursedir,
+                    authenticator=authenticator,
+                    config=config)
                 fetch.start()
 
             except:
@@ -164,15 +190,50 @@ class AssignmentList(LoggingConfigurable):
 
         return retvalue
 
-    def submit_assignment(self, course_id, assignment_id):
-        with chdir(self.assignment_dir):
+
+    def fetch_feedback(self, course_id, assignment_id):
+        with self.get_assignment_dir_config() as config:
             try:
                 config = self.load_config()
-                config.Exchange.course_id = course_id
+                config.CourseDirectory.course_id = course_id
                 config.CourseDirectory.assignment_id = assignment_id
 
                 coursedir = CourseDirectory(config=config)
-                submit = ExchangeSubmit(coursedir=coursedir, config=config)
+                authenticator = Authenticator(config=config)
+                fetch = ExchangeFetchFeedback(
+                    coursedir=coursedir,
+                    authenticator=authenticator,
+                    config=config)
+                fetch.start()
+
+            except:
+                self.log.error(traceback.format_exc())
+                retvalue = {
+                    "success": False,
+                    "value": traceback.format_exc()
+                }
+
+            else:
+                retvalue = {
+                    "success": True
+                }
+
+        return retvalue
+
+
+    def submit_assignment(self, course_id, assignment_id):
+        with self.get_assignment_dir_config() as config:
+            try:
+                config = self.load_config()
+                config.CourseDirectory.course_id = course_id
+                config.CourseDirectory.assignment_id = assignment_id
+
+                coursedir = CourseDirectory(config=config)
+                authenticator = Authenticator(config=config)
+                submit = ExchangeSubmit(
+                    coursedir=coursedir,
+                    authenticator=authenticator,
+                    config=config)
                 submit.start()
 
             except:
@@ -222,6 +283,11 @@ class AssignmentActionHandler(BaseAssignmentHandler):
                 self.finish(json.dumps(self.manager.list_assignments(course_id=course_id)))
             else:
                 self.finish(json.dumps(output))
+        elif action == 'fetch_feedback':
+            assignment_id = self.get_argument('assignment_id')
+            course_id = self.get_argument('course_id')
+            self.manager.fetch_feedback(course_id, assignment_id)
+            self.finish(json.dumps(self.manager.list_assignments(course_id=course_id)))
 
 
 class CourseListHandler(BaseAssignmentHandler):
@@ -261,7 +327,7 @@ class NbGraderVersionHandler(BaseAssignmentHandler):
 #-----------------------------------------------------------------------------
 
 
-_assignment_action_regex = r"(?P<action>fetch|submit)"
+_assignment_action_regex = r"(?P<action>fetch|submit|fetch_feedback)"
 
 default_handlers = [
     (r"/assignments", AssignmentListHandler),

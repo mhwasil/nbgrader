@@ -14,6 +14,7 @@ var submission_id = "{{ resources.submission_id }}";
 var notebook_id = "{{ resources.notebook_id }}";
 var assignment_id = "{{ resources.assignment_id }}";
 var base_url = "{{ resources.base_url }}/formgrader";
+var task_id = "{{ resources.keyword }}";
 </script>
 
 <script src="{{ resources.base_url }}/formgrader/static/js/backbone_xsrf.js"></script>
@@ -43,7 +44,7 @@ function toggle_name(on) {
       <div class="col-md-2">
         <ul class="nav navbar-nav navbar-left">
           <li class="previous">
-            <a data-toggle="tooltip" data-trigger="hover" data-placement="right" title="{{ resources.index }} remaining" href="{{ resources.base_url }}/formgrader/submissions/{{ resources.submission_id }}/prev">
+            <a data-toggle="tooltip" data-trigger="hover" data-placement="right" title="{{ resources.index }} remaining" href="{{ resources.base_url }}/formgrader/submissions/{{ resources.submission_id }}/prev/?task={{ resources.keyword }}">
             &larr; Prev
             </a>
           </li>
@@ -75,7 +76,7 @@ function toggle_name(on) {
       <div class="col-md-2">
         <ul class="nav navbar-nav navbar-right">
           <li class="next">
-            <a class="tabbable" data-trigger="hover" data-toggle="tooltip" data-placement="left" title="{{ resources.total - (resources.index + 1) }} remaining" href="{{ resources.base_url }}/formgrader/submissions/{{ resources.submission_id }}/next">
+            <a class="tabbable" data-trigger="hover" data-toggle="tooltip" data-placement="left" title="{{ resources.total - (resources.index + 1) }} remaining" href="{{ resources.base_url }}/formgrader/submissions/{{ resources.submission_id }}/next/?task={{ resources.keyword }}">
             Next &rarr;
             </a>
           </li>

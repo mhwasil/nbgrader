@@ -4,12 +4,29 @@ import re
 from textwrap import dedent
 
 from traitlets.config import LoggingConfigurable
-from traitlets import Unicode, List, default, validate, TraitError
+from traitlets import Integer, Bool, Unicode, List, default, validate, TraitError
 
 from .utils import full_split, parse_utc
 
 
 class CourseDirectory(LoggingConfigurable):
+
+    course_id = Unicode(
+        '',
+        help=dedent(
+            """
+            A key that is unique per instructor and course. This can be
+            specified, either by setting the config option, or using the
+            --course option on the command line.
+            """
+        )
+    ).tag(config=True)
+
+    @validate('course_id')
+    def _validate_course_id(self, proposal):
+        if proposal['value'].strip() != proposal['value']:
+            self.log.warning("course_id '%s' has trailing whitespace, stripping it away", proposal['value'])
+        return proposal['value'].strip()
 
     student_id = Unicode(
         "*",
@@ -18,7 +35,8 @@ class CourseDirectory(LoggingConfigurable):
             File glob to match student IDs. This can be changed to filter by
             student. Note: this is always changed to '.' when running `nbgrader
             assign`, as the assign step doesn't have any student ID associated
-            with it.
+            with it. With `nbgrader submit`, this instead forces the use of
+            an alternative student ID for the submission. See `nbgrader submit --help`.
 
             If the ID is purely numeric and you are passing it as a flag on the
             command line, you will need to escape the quotes in order to have
@@ -36,6 +54,19 @@ class CourseDirectory(LoggingConfigurable):
         if proposal['value'].strip() != proposal['value']:
             self.log.warning("student_id '%s' has trailing whitespace, stripping it away", proposal['value'])
         return proposal['value'].strip()
+
+    student_id_exclude = Unicode(
+        "",
+        help=dedent(
+            """
+            Comma-separated list of student IDs to exclude.  Counterpart of student_id.
+
+            This is useful when running commands on all students, but certain
+            students cause errors or otherwise must be left out.  Works at
+            least for autograde, generate_feedback, and release_feedback.
+            """
+        )
+    ).tag(config=True)
 
     assignment_id = Unicode(
         "",
@@ -201,19 +232,68 @@ class CourseDirectory(LoggingConfigurable):
         )
     ).tag(config=True)
 
+    groupshared = Bool(
+        False,
+        help=dedent(
+            """
+            Make all instructor files group writeable (g+ws, default g+r only)
+            and exchange directories group readable/writeable (g+rws, default
+            g=nothing only ) by default.  This should only be used if you
+            carefully set the primary groups of your notebook servers and fully
+            understand the unix permission model.  This changes the default
+            permissions from 444 (unwriteable) to 664 (writeable), so that
+            other instructors are able to delete/overwrite files.
+            """
+        )
+    ).tag(config=True)
+
     @default("root")
     def _root_default(self):
         return os.getcwd()
+
+    @validate('root')
+    def _validate_root(self, proposal):
+        path = os.path.abspath(proposal['value'])
+        if path != proposal['value']:
+            self.log.warning("root '%s' is not absolute, standardizing it to '%s", proposal['value'], path)
+        return path
 
     ignore = List(
         [
             ".ipynb_checkpoints",
             "*.pyc",
-            "__pycache__"
+            "__pycache__",
+            "feedback",
         ],
         help=dedent(
             """
-            List of file names or file globs to be ignored when copying directories.
+            List of file names or file globs.
+            Upon copying directories recursively, matching files and
+            directories will be ignored with a debug message.
+            """
+        )
+    ).tag(config=True)
+
+    include = List(
+        [
+            "*",
+        ],
+        help=dedent(
+            """
+            List of file names or file globs.
+            Upon copying directories recursively, non matching files
+            will be ignored with a debug message.
+            """
+        )
+    ).tag(config=True)
+
+    max_file_size = Integer(
+        100000,
+        help=dedent(
+            """
+            Maximum size of files (in kilobytes; default: 100Mb).
+            Upon copying directories recursively, larger files will be
+            ignored with a warning.
             """
         )
     ).tag(config=True)

@@ -27,6 +27,10 @@ class BaseHandler(IPythonHandler):
         return self.settings['nbgrader_coursedir']
 
     @property
+    def authenticator(self):
+        return self.settings['nbgrader_authenticator']
+
+    @property
     def gradebook(self):
         gb = self.settings['nbgrader_gradebook']
         if gb is None:
@@ -46,7 +50,8 @@ class BaseHandler(IPythonHandler):
     @property
     def api(self):
         level = self.log.level
-        api = NbGraderAPI(self.coursedir, parent=self.coursedir.parent)
+        api = NbGraderAPI(
+            self.coursedir, self.authenticator, parent=self.coursedir.parent)
         api.log_level = level
         return api
 
@@ -100,5 +105,14 @@ def check_xsrf(f):
     @functools.wraps(f)
     def wrapper(self, *args, **kwargs):
         _ = self.xsrf_token
+        return f(self, *args, **kwargs)
+    return wrapper
+
+
+def check_notebook_dir(f):
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs):
+        if self.settings['nbgrader_bad_setup']:
+            return self.write_error(500)
         return f(self, *args, **kwargs)
     return wrapper

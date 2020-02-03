@@ -9,14 +9,13 @@ import stat
 import logging
 import traceback
 import contextlib
+import fnmatch
 
 from setuptools.archive_util import unpack_archive
 from setuptools.archive_util import unpack_tarfile
 from setuptools.archive_util import unpack_zipfile
-from contextlib import contextmanager
 from tornado.log import LogFormatter
 from dateutil.tz import gettz
-
 
 # pwd is for unix passwords only, so we shouldn't import it on
 # windows machines
@@ -51,8 +50,39 @@ def is_locked(cell):
     else:
         return cell.metadata['nbgrader'].get('locked', False)
 
+def get_partial_grade(output, max_points, log=None):
+    # check that output["data"]["text/plain"] exists
+    if not output["data"]["text/plain"]:
+        raise KeyError("output ['data']['text/plain'] does not exist")
+    grade = output["data"]["text/plain"]
+    warning_msg = """For autograder tests, expecting output to indicate
+    partial credit and be single value between 0.0 and max_points.
+    Currently treating other output as full credit, but future releases
+    may treat as error."""
+    # For partial credit, expecting grade to be a value between 0 and max_points
+    # A valid value for key output["data"]["text/plain"] can be a list or a string
+    if (isinstance(grade,list)):
+        if (len(grade)>1):
+            if log:
+                log.warning(warning_msg)
+            return max_points
+        grade = grade[0]
+    try:
+        grade = float(grade)
+    except ValueError:
+        if log:
+            log.warning(warning_msg)
+        return max_points
+    if (grade > 0.0):
+        if (grade > max_points):
+            raise ValueError("partial credit cannot be greater than maximum points for cell")
+        return grade
+    else:
+        if log:
+            log.warning(warning_msg)
+        return max_points
 
-def determine_grade(cell):
+def determine_grade(cell, log=None):
     if not is_grade(cell):
         raise ValueError("cell is not a grade cell")
 
@@ -67,9 +97,21 @@ def determine_grade(cell):
             return None, max_points
 
     elif cell.cell_type == 'code':
+        # for code cells, we look at the output. There are three options:
+        # 1. output contains an error (no credit);
+        # 2. output is a value greater than 0 (partial credit);
+        # 3. output is something else, or nothing (full credit).
         for output in cell.outputs:
+            # option 1: error, return 0
             if output.output_type == 'error':
                 return 0, max_points
+            # if not error, then check for option 2, partial credit
+            if output.output_type == 'execute_result':
+                # is there a single result that can be cast to a float?
+                partial_grade = get_partial_grade(output, max_points, log)
+                return partial_grade, max_points
+
+        # otherwise, assume all fine and return all the points
         return max_points, max_points
 
     else:
@@ -181,6 +223,59 @@ def is_ignored(filename, ignore_globs=None):
         if filename in globs:
             return True
     return False
+
+
+def ignore_patterns(exclude=None, include=None, max_file_size=None, log=None):
+    """
+    Function that can be used as :func:`shutils.copytree` ignore parameter.
+
+    This is a generalization of :func:`shutils.ignore_patterns` that supports
+    include globs, exclude globs, max file size, and logging.
+
+    Arguments
+    ---------
+    exclude: list or None
+        A list of filename globs or None (the default)
+    include: list or None
+        A list of filename globs or None (the default)
+    max_file_size: int or float
+        The max file size, in kilobytes
+    log: logging.Logger or None (the default)
+
+    Returns
+    -------
+
+    A function taking a directory name and list of file/directory
+    names and returning the list of file/directory names to be
+    ignored.
+
+    A file/directory is ignored as soon as it is either excluded, or
+    not included explicitely, or too large.
+
+    If a logger is provided, a warning is logged for files too large
+    and a debug message for otherwise ignored files.
+    """
+    def ignore_patterns(directory, filelist):
+        ignored = []
+        for filename in filelist:
+            rationale = None
+            fullname = os.path.join(directory, filename)
+            if exclude and any(fnmatch.fnmatch(filename, glob) for glob in exclude):
+                if log:
+                    log.debug("Ignoring excluded file '{}' (see config option CourseDirectory.ignore)".format(fullname))
+                ignored.append(filename)
+            else:
+                if os.path.isfile(fullname):
+                    if include and not any(fnmatch.fnmatch(filename, glob) for glob in include):
+                        if log:
+                            log.debug("Ignoring non included file '{}' (see config option CourseDirectory.include)".format(fullname))
+                        ignored.append(filename)
+                    elif max_file_size and os.path.getsize(fullname) > 1000*max_file_size:
+                        if log:
+                            log.warning("Ignoring file too large '{}' (see config option CourseDirectory.max_file_size)".format(fullname))
+                        ignored.append(filename)
+        return ignored
+    return ignore_patterns
 
 
 def find_all_files(path, exclude=None):
@@ -351,7 +446,7 @@ def unzip(src, dest, zip_ext=None, create_own_folder=False, tree=False):
         new_files = find_archive_files(skip)
 
 
-@contextmanager
+@contextlib.contextmanager
 def temp_attrs(app, **newvals):
     oldvals = {}
     for k, v in newvals.items():
@@ -414,3 +509,16 @@ def capture_log(app, fmt="[%(levelname)s] %(message)s"):
         app.log.removeHandler(handler)
 
     return result
+
+
+def notebook_hash(path, unique_key=None):
+    m = hashlib.md5()
+    m.update(open(path, 'rb').read())
+    if unique_key:
+        m.update(to_bytes(unique_key))
+    return m.hexdigest()
+
+
+def make_unique_key(course_id, assignment_id, notebook_id, student_id, timestamp):
+    return "+".join([
+        course_id, assignment_id, notebook_id, student_id, timestamp])

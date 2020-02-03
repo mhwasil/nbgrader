@@ -16,12 +16,12 @@ assignments. For example:
 
     # create a custom config object to specify options for nbgrader
     config = Config()
-    config.Exchange.course_id = "course101"
+    config.CourseDirectory.course_id = "course101"
 
     api = NbGraderAPI(config=config)
 
     # assuming source/ps1 exists
-    api.assign("ps1")
+    api.generate_assignment("ps1")
 
 For details on how to configure the API, see :doc:`/configuration/config_options`.
 
@@ -72,3 +72,9 @@ For details on how to configure the API, see :doc:`/configuration/config_options
     .. automethod:: collect
 
     .. automethod:: autograde
+
+    .. automethod:: generate_feedback
+
+    .. automethod:: release_feedback
+
+    .. automethod:: fetch_feedback

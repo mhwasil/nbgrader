@@ -17,6 +17,7 @@ from .. import (
     create_grade_cell, create_solution_cell,
     create_grade_and_solution_cell)
 
+from .conftest import notwindows
 
 @pytest.fixture
 def temp_cwd(request):
@@ -131,6 +132,64 @@ def test_determine_grade_code_grade_and_solution():
     cell.source = 'test!'
     assert utils.determine_grade(cell) == (None, 10)
 
+def test_get_partial_grade():
+    # test single value in list
+    test_data = { "data": { "text/plain": [ "0.6" ] } }
+    assert utils.get_partial_grade(test_data,1.0) == 0.6
+
+    # test single value not in list
+    test_data = { "data": { "text/plain": "6.0" } }
+    assert utils.get_partial_grade(test_data,10.0) == 6.0
+
+    # test string in list, should assume partial credit not intended
+    test_data = { "data": { "text/plain": [ "'this is a string'" ] } }
+    assert utils.get_partial_grade(test_data,2.0) == 2.0
+
+    # test returning too many points
+    test_data = { "data": { "text/plain": [ "2.0" ] } }
+    with pytest.raises(ValueError):
+        utils.get_partial_grade(test_data, 1.0)
+
+    test_data = { "fake_key": 4 }
+    with pytest.raises(KeyError):
+        utils.get_partial_grade(test_data, 2.0)
+
+def test_determine_grade_code_partial_credit():
+    # create grade cell with max_points == 5
+    cell = create_grade_cell('test', "code", "foo", 5)
+    test_data = {
+        "text/plain": "3"
+        }
+    cell.outputs = [new_output(
+        output_type="execute_result",
+        execution_count=1,
+        data=test_data)
+        ]
+    assert utils.determine_grade(cell) == (3,5)
+
+    # should give error when partial_credit > max_grade
+    cell.outputs = []
+    test_data = {
+        "text/plain": "5.5"
+        }
+    cell.outputs = [new_output(
+        output_type="execute_result",
+        execution_count=1,
+        data=test_data)
+        ]
+    with pytest.raises(ValueError):
+        utils.determine_grade(cell)
+
+    cell.outputs = []
+    test_data = {
+        "text/plain": [ "0.5", "abc" ]
+        }
+    cell.outputs = [new_output(
+        output_type="execute_result",
+        execution_count=1,
+        data=test_data)
+        ]
+    assert utils.determine_grade(cell) == (5,5)
 
 def test_determine_grade_markdown_grade_and_solution():
     cell = create_grade_and_solution_cell('test', "markdown", "foo", 10)
@@ -256,6 +315,21 @@ def test_compute_checksum_utf8():
     utils.compute_checksum(create_solution_cell("\u03b8", "markdown", "foo"))
     utils.compute_checksum(create_solution_cell(u'$$\\int^\u221e_0 x^2dx$$', "markdown", "foo"))
 
+def test_ignore_patterns(temp_cwd):
+    dir = "foo"
+    os.mkdir(dir)
+    files = ["foo.txt", "long.txt", "truc.png"]
+    for file in files:
+        with open(join(dir, file), "w") as fh:
+            fh.write("bar")
+            if file == "long.txt":
+                fh.write("x"*2000)
+    os.mkdir(join(dir,"foo"))
+    files.append("foo")
+    assert utils.ignore_patterns(exclude=["foo*"])(dir, files) == ["foo.txt", "foo"]
+    assert utils.ignore_patterns(include=["*.txt"])(dir, files) == ["truc.png"]
+    assert utils.ignore_patterns(exclude=["foo.*"], include=["*.txt"])(dir, files) == ['foo.txt', 'truc.png']
+    assert utils.ignore_patterns(max_file_size=2)(dir, files) == ["long.txt"]
 
 def test_is_ignored(temp_cwd):
     os.mkdir("foo")
@@ -357,3 +431,9 @@ def test_unzip_tree(temp_cwd):
     assert os.path.isdir(os.path.join("data", "bar"))
     assert os.path.isdir(os.path.join("data", "baz", "bar"))
     assert os.path.isfile(os.path.join("data", "baz", "bar", "foo.txt"))
+
+@notwindows
+def test_get_username():
+    assert utils.get_username() == os.environ["USER"]
+    # Can't test get_username's support for JUPYTERHUB_USER, as
+    # this would require actually running the tests as 'jovyan'.

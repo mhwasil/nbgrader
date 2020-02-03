@@ -4,21 +4,24 @@ import sys
 import os
 import six
 import logging
+import warnings
 
-from traitlets.config import LoggingConfigurable
+from traitlets.config import LoggingConfigurable, Config
 from traitlets import Instance, Enum, Unicode, observe
 
 from ..coursedir import CourseDirectory
-from ..converters import Assign, Autograde
-from ..exchange import ExchangeList, ExchangeRelease, ExchangeCollect, ExchangeError, ExchangeSubmit
-from ..api import MissingEntry, Gradebook, Student, SubmittedAssignment
+from ..converters import GenerateAssignment, Autograde, GenerateFeedback
+from ..exchange import ExchangeList, ExchangeReleaseAssignment, ExchangeReleaseFeedback, ExchangeFetchFeedback, ExchangeCollect, ExchangeError, ExchangeSubmit
+from ..api import MissingEntry, Gradebook, Student, SubmittedAssignment, GradeCell, Grade, BaseCell, SubmittedNotebook
 from ..utils import parse_utc, temp_attrs, capture_log, as_timezone, to_numeric_tz
+from ..auth import Authenticator
 
 
 class NbGraderAPI(LoggingConfigurable):
     """A high-level API for using nbgrader."""
 
     coursedir = Instance(CourseDirectory, allow_none=True)
+    authenticator = Instance(Authenticator, allow_none=True)
 
     # The log level for the application
     log_level = Enum(
@@ -46,13 +49,16 @@ class NbGraderAPI(LoggingConfigurable):
             self.log_level = new
         self.log.setLevel(new)
 
-    def __init__(self, coursedir=None, **kwargs):
+    def __init__(self, coursedir=None, authenticator=None, **kwargs):
         """Initialize the API.
 
         Arguments
         ---------
         coursedir: :class:`nbgrader.coursedir.CourseDirectory`
             (Optional) A course directory object.
+        authenticator : :class:~`nbgrader.auth.BaseAuthenticator`
+            (Optional) An authenticator instance for communicating with an
+            external database.
         kwargs:
             Additional keyword arguments (e.g. ``parent``, ``config``)
 
@@ -65,9 +71,17 @@ class NbGraderAPI(LoggingConfigurable):
         else:
             self.coursedir = coursedir
 
+        if authenticator is None:
+            self.authenticator = Authenticator(parent=self)
+        else:
+            self.authenticator = authenticator
+
         if sys.platform != 'win32':
-            lister = ExchangeList(coursedir=self.coursedir, parent=self)
-            self.course_id = lister.course_id
+            lister = ExchangeList(
+                coursedir=self.coursedir,
+                authenticator=self.authenticator,
+                parent=self)
+            self.course_id = self.coursedir.course_id
             self.exchange = lister.root
 
             try:
@@ -95,7 +109,7 @@ class NbGraderAPI(LoggingConfigurable):
         :func:`~nbgrader.api.Gradebook.close`.
 
         """
-        return Gradebook(self.coursedir.db_url)
+        return Gradebook(self.coursedir.db_url, self.course_id)
 
     def get_source_assignments(self):
         """Get the names of all assignments in the `source` directory.
@@ -142,7 +156,10 @@ class NbGraderAPI(LoggingConfigurable):
 
         """
         if self.exchange_is_functional:
-            lister = ExchangeList(coursedir=self.coursedir, parent=self)
+            lister = ExchangeList(
+                coursedir=self.coursedir,
+                authenticator=self.authenticator,
+                parent=self)
             released = set([x['assignment_id'] for x in lister.start()])
         else:
             released = set([])
@@ -595,6 +612,159 @@ class NbGraderAPI(LoggingConfigurable):
         submissions.sort(key=lambda x: x["student"])
         return submissions
 
+    def get_solution_cell_ids(self, assignment_id, notebook_id):
+        """Get information about the solution cells of a notebook
+        given its name.
+
+        Arguments
+        ---------
+        assignment_id: string
+            The name of the assignment
+        notebook_id: string
+            The name of the notebook
+
+        Returns
+        -------
+        solution_cells: dict
+            A dictionary containing information about the solution cells
+
+        """
+        solution_cells = []
+        with self.gradebook as gb:
+            notebook_id = gb.find_notebook(notebook_id, assignment_id).id
+                        
+            for cell_id, cell_name in gb.db.query(BaseCell.id, BaseCell.name)\
+                                        .filter(BaseCell.type == 'SolutionCell')\
+                                        .filter(BaseCell.notebook_id == notebook_id):
+
+                autograded = 0
+
+                grade_id = gb.db.query(BaseCell.id)\
+                    .filter(BaseCell.type == 'GradeCell')\
+                    .filter(BaseCell.notebook_id == notebook_id)\
+                    .filter(BaseCell.name == cell_name)\
+                    .first()
+
+                if grade_id == None:
+                    autograded = 1
+                    grade_id = gb.db.query(BaseCell.id)\
+                        .filter(BaseCell.type == 'GradeCell')\
+                        .filter(BaseCell.notebook_id == notebook_id)\
+                        .filter(BaseCell.name == 'test_{}'.format(cell_name))\
+                        .first()
+                if grade_id == None:
+                    continue
+
+                grade_cell = gb.db.query(GradeCell.id, GradeCell.max_score)\
+                    .filter(GradeCell.id == grade_id[0])\
+                    .first()
+
+                avg_score = 0
+                needs_grading = 0
+                i = 0
+                for manual_score, auto_score, needs_manual_grade in gb.db\
+                        .query(Grade.manual_score, Grade.auto_score,\
+                        Grade.needs_manual_grade)\
+                        .filter(Grade.cell_id == grade_cell[0]):
+                    needs_grading = max(needs_manual_grade, needs_grading)
+                    if manual_score:
+                        avg_score += manual_score
+                    elif auto_score:
+                        avg_score += auto_score
+                    i += 1
+
+                if needs_grading:
+                    needs_grading = 1
+                else:
+                    needs_grading = 0
+
+
+                solution_cell = {
+                    "id": cell_id,
+                    "name": cell_name,
+                    "grade_id": grade_cell[0],
+                    "max_score": grade_cell[1],
+                    "autograded": autograded,
+                    "avg_score": avg_score/i,
+                    "needs_manual_grade": needs_grading
+                }
+
+                solution_cells.append(solution_cell)
+
+        return solution_cells
+
+    def get_grade_cell(self, notebook_id, solution_cell_name):
+        with self.gradebook as gb:            
+            grade_cell = gb.db.query(GradeCell.id, GradeCell.name, GradeCell.max_score)\
+                .filter(GradeCell.notebook_id == notebook_id, GradeCell.name == solution_cell_name).first()
+            if grade_cell is None:
+                grade_cell = gb.db.query(GradeCell.id, GradeCell.name, GradeCell.max_score)\
+                .filter(GradeCell.notebook_id == notebook_id, GradeCell.name == 'test_{}'.format(solution_cell_name)).first()
+            return grade_cell
+
+
+    def get_task_submissions(self, assignment_id, notebook_id, task_id):
+        """Get a list of submissions for a particular notebook in an assignment.
+
+        Arguments
+        ---------
+        assignment_id: string
+            The name of the assignment
+        notebook_id: string
+            The name of the notebook
+        task_id: string
+            The name of the solution cell
+
+        Returns
+        -------
+        submissions: list
+            A list of dictionaries containing information about each submission.
+
+        """
+        with self.gradebook as gb:
+            try:
+                notebook_uid = gb.find_notebook(notebook_id, assignment_id).id
+                grade_id = self.get_grade_cell(notebook_uid, task_id)[0]
+            except MissingEntry:
+                return []
+            except TypeError:
+                return []
+
+            query = gb.db.query(SubmittedNotebook.id, Grade, Student, GradeCell)\
+                .join(SubmittedAssignment, SubmittedNotebook.assignment_id == SubmittedAssignment.id)\
+                .join(Grade, Grade.notebook_id == SubmittedNotebook.id)\
+                .join(Student, Student.id == SubmittedAssignment.student_id)\
+                .join(GradeCell, GradeCell.id == Grade.cell_id)\
+                .filter(Grade.cell_id == grade_id)\
+                .all()
+
+        submissions = []
+        idx = 0
+        for submission_id, grade, student, grade_cell in query:
+            score = 0
+            tests_failed = False
+            if grade.manual_score != None:
+                score = grade.manual_score
+            elif grade.auto_score != None:
+                score = grade.auto_score
+                tests_failed = score < grade_cell.max_score
+            submission = {
+                "id": submission_id,
+                "student": student.id,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+                "score": score,
+                "max_score": grade_cell.max_score,
+                "needs_manual_grade": grade.needs_manual_grade,
+                "tests_failed": tests_failed,
+                "index": idx        
+            }
+            submissions.append(submission)
+            idx += 1
+
+
+        return submissions
+
     def _filter_existing_notebooks(self, assignment_id, notebooks):
         """Filters a list of notebooks so that it only includes those notebooks
         which actually exist on disk.
@@ -624,7 +794,10 @@ class NbGraderAPI(LoggingConfigurable):
         # should be here already so we don't need to filter for only
         # existing notebooks in that case.
         if self.exchange_is_functional:
-            app = ExchangeSubmit(coursedir=self.coursedir, parent=self)
+            app = ExchangeSubmit(
+                    coursedir=self.coursedir,
+                    authenticator=self.authenticator,
+                    parent=self)
             if app.strict:
                 return sorted(notebooks, key=lambda x: x.id)
 
@@ -727,6 +900,7 @@ class NbGraderAPI(LoggingConfigurable):
                     "last_name": None,
                     "first_name": None,
                     "email": None,
+                    "lms_user_id": None,
                     "score": 0.0,
                     "max_score": 0.0
                 }
@@ -756,6 +930,7 @@ class NbGraderAPI(LoggingConfigurable):
                 "last_name": None,
                 "first_name": None,
                 "email": None,
+                "lms_user_id": None,
                 "score": 0.0,
                 "max_score": 0.0
             })
@@ -844,8 +1019,17 @@ class NbGraderAPI(LoggingConfigurable):
         submissions.sort(key=lambda x: x["name"])
         return submissions
 
-    def assign(self, assignment_id, force=True, create=True):
-        """Run ``nbgrader assign`` for a particular assignment.
+    def assign(self, *args, **kwargs):
+        """Deprecated, please use `generate_assignment` instead."""
+        msg = (
+            "The `assign` method is deprecated, please use `generate_assignment` "
+            "instead. This method will be removed in a future version of nbgrader.")
+        warnings.warn(msg, DeprecationWarning)
+        self.log.warning(msg)
+        return self.generate_assignment(*args, **kwargs)
+
+    def generate_assignment(self, assignment_id, force=True, create=True):
+        """Run ``nbgrader generate_assignment`` for a particular assignment.
 
         Arguments
         ---------
@@ -869,7 +1053,7 @@ class NbGraderAPI(LoggingConfigurable):
 
         """
         with temp_attrs(self.coursedir, assignment_id=assignment_id):
-            app = Assign(coursedir=self.coursedir, parent=self)
+            app = GenerateAssignment(coursedir=self.coursedir, parent=self)
             app.force = force
             app.create_assignment = create
             return capture_log(app)
@@ -894,12 +1078,24 @@ class NbGraderAPI(LoggingConfigurable):
         """
         if sys.platform != 'win32':
             with temp_attrs(self.coursedir, assignment_id=assignment_id):
-                app = ExchangeList(coursedir=self.coursedir, parent=self)
+                app = ExchangeList(
+                    coursedir=self.coursedir,
+                    authenticator=self.authenticator,
+                    parent=self)
                 app.remove = True
                 return capture_log(app)
 
-    def release(self, assignment_id):
-        """Run ``nbgrader release`` for a particular assignment.
+    def release(self, *args, **kwargs):
+        """Deprecated, please use `release_assignment` instead."""
+        msg = (
+            "The `release` method is deprecated, please use `release_assignment` "
+            "instead. This method will be removed in a future version of nbgrader.")
+        warnings.warn(msg, DeprecationWarning)
+        self.log.warning(msg)
+        return self.release_assignment(*args, **kwargs)
+
+    def release_assignment(self, assignment_id):
+        """Run ``nbgrader release_assignment`` for a particular assignment.
 
         Arguments
         ---------
@@ -918,7 +1114,10 @@ class NbGraderAPI(LoggingConfigurable):
         """
         if sys.platform != 'win32':
             with temp_attrs(self.coursedir, assignment_id=assignment_id):
-                app = ExchangeRelease(coursedir=self.coursedir, parent=self)
+                app = ExchangeReleaseAssignment(
+                    coursedir=self.coursedir,
+                    authenticator=self.authenticator,
+                    parent=self)
                 return capture_log(app)
 
     def collect(self, assignment_id, update=True):
@@ -944,7 +1143,10 @@ class NbGraderAPI(LoggingConfigurable):
         """
         if sys.platform != 'win32':
             with temp_attrs(self.coursedir, assignment_id=assignment_id):
-                app = ExchangeCollect(coursedir=self.coursedir, parent=self)
+                app = ExchangeCollect(
+                    coursedir=self.coursedir,
+                    authenticator=self.authenticator,
+                    parent=self)
                 app.update = update
                 return capture_log(app)
 
@@ -979,3 +1181,122 @@ class NbGraderAPI(LoggingConfigurable):
             app.force = force
             app.create_student = create
             return capture_log(app)
+
+    def generate_feedback(self, assignment_id, student_id=None, force=True):
+        """Run ``nbgrader generate_feedback`` for a particular assignment and student.
+
+        Arguments
+        ---------
+        assignment_id: string
+            The name of the assignment
+        student_id: string
+            The name of the student (optional). If not provided, then generate
+            feedback from autograded submissions.
+        force: bool
+            Whether to force generating feedback, even if it already exists.
+
+        Returns
+        -------
+        result: dict
+            A dictionary with the following keys (error and log may or may not be present):
+
+            - success (bool): whether or not the operation completed successfully
+            - error (string): formatted traceback
+            - log (string): captured log output
+
+        """
+        # Because we may be using HTMLExporter.template_file in other
+        # parts of the the UI, we need to make sure that the template
+        # is explicitply 'feedback.tpl` here:
+        c = Config()
+        c.HTMLExporter.template_file = 'feedback.tpl'
+        if student_id is not None:
+            with temp_attrs(self.coursedir,
+                            assignment_id=assignment_id,
+                            student_id=student_id):
+                app = GenerateFeedback(coursedir=self.coursedir, parent=self)
+                app.update_config(c)
+                app.force = force
+                return capture_log(app)
+        else:
+            with temp_attrs(self.coursedir,
+                            assignment_id=assignment_id):
+                app = GenerateFeedback(coursedir=self.coursedir, parent=self)
+                app.update_config(c)
+                app.force = force
+                return capture_log(app)
+
+    def release_feedback(self, assignment_id, student_id=None):
+        """Run ``nbgrader release_feedback`` for a particular assignment/student.
+
+        Arguments
+        ---------
+        assignment_id: string
+            The name of the assignment
+        assignment_id: string
+            The name of the student (optional). If not provided, then release
+            all generated feedback.
+
+        Returns
+        -------
+        result: dict
+            A dictionary with the following keys (error and log may or may not be present):
+
+            - success (bool): whether or not the operation completed successfully
+            - error (string): formatted traceback
+            - log (string): captured log output
+
+        """
+        if student_id is not None:
+            with temp_attrs(self.coursedir, assignment_id=assignment_id, student_id=student_id):
+                app = ExchangeReleaseFeedback(
+                    coursedir=self.coursedir,
+                    authentictor=self.authenticator,
+                    parent=self)
+                return capture_log(app)
+        else:
+            with temp_attrs(self.coursedir, assignment_id=assignment_id, student_id='*'):
+                app = ExchangeReleaseFeedback(
+                    coursedir=self.coursedir,
+                    authentictor=self.authenticator,
+                    parent=self)
+                return capture_log(app)
+
+    def fetch_feedback(self, assignment_id, student_id):
+        """Run ``nbgrader fetch_feedback`` for a particular assignment/student.
+
+        Arguments
+        ---------
+        assignment_id: string
+            The name of the assignment
+        student_id: string
+            The name of the student.
+
+        Returns
+        -------
+        result: dict
+            A dictionary with the following keys (error and log may or may not be present):
+
+            - success (bool): whether or not the operation completed successfully
+            - error (string): formatted traceback
+            - log (string): captured log output
+            - value (list of dict): all submitted assignments
+
+        """
+        with temp_attrs(self.coursedir, assignment_id=assignment_id, student_id=student_id):
+            app = ExchangeFetchFeedback(
+                coursedir=self.coursedir,
+                authentictor=self.authenticator,
+                parent=self)
+            ret_dic = capture_log(app)
+            # assignment tab needs a 'value' field with the info needed to repopulate
+            # the tables.
+        with temp_attrs(self.coursedir, assignment_id='*', student_id=student_id):
+            lister_rel = ExchangeList(
+                inbound=False, cached=True,
+                coursedir=self.coursedir,
+                authenticator=self.authenticator,
+                config=self.config)
+            assignments = lister_rel.start()
+            ret_dic["value"] = sorted(assignments, key=lambda x: (x['course_id'], x['assignment_id']))
+        return ret_dic

@@ -55,6 +55,7 @@ def jupyter_config_dir(request):
 
     return jupyter_config_dir
 
+
 @pytest.fixture(scope="module")
 def jupyter_data_dir(request):
     jupyter_data_dir = tempfile.mkdtemp()
@@ -95,7 +96,7 @@ def port():
     return nbserver_port
 
 
-def _make_nbserver(course_id, port, tempdir, jupyter_config_dir, jupyter_data_dir, exchange, cache):
+def _make_nbserver(course_id, port, tempdir, jupyter_config_dir, jupyter_data_dir, exchange, cache, startup_fn=None):
     env = os.environ.copy()
     env['JUPYTER_CONFIG_DIR'] = jupyter_config_dir
     env['JUPYTER_DATA_DIR'] = jupyter_data_dir
@@ -125,9 +126,12 @@ def _make_nbserver(course_id, port, tempdir, jupyter_config_dir, jupyter_data_di
                 """
                 c.Exchange.root = "{}"
                 c.Exchange.cache = "{}"
-                c.Exchange.course_id = "{}"
+                c.CourseDirectory.course_id = "{}"
                 """.format(exchange, cache, course_id)
             ))
+
+    if startup_fn:
+        startup_fn(env)
 
     kwargs = dict(env=env)
     if sys.platform == 'win32':

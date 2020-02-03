@@ -71,8 +71,8 @@ setup_args = dict(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ],
     packages=find_packages(),
     package_data={
@@ -93,7 +93,7 @@ setup_args = dict(
         "python-dateutil",
         "jupyter",
         "notebook>=4.2",
-        "nbconvert>=4.2,<5.5",  # revert when https://github.com/jupyter/nbconvert/pull/1022 is fixed upstream
+        "nbconvert>=5.6",
         "nbformat",
         "traitlets",
         "jupyter_core",
@@ -103,8 +103,7 @@ setup_args = dict(
         "requests",
         "jsonschema",
         "alembic",
-        "fuzzywuzzy",
-        "urllib3<1.25"  # >=1.25 currently conflicts with requests
+        "fuzzywuzzy"
     ]
 )
 

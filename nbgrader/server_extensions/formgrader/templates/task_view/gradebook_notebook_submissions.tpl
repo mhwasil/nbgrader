@@ -1,9 +1,11 @@
-{%- extends 'gradebook_base.tpl' -%}
+{%- extends 'task_view/gradebook_base.tpl' -%}
 
 {%- block head -%}
 <script>
 var assignment_id = "{{ assignment_id }}";
 var notebook_id = "{{ notebook_id }}";
+var task_id = "/{{ task_id }}";
+var view = "task";
 </script>
 
 <script src="{{ base_url }}/formgrader/static/js/gradebook_notebook_submissions.js"></script>
@@ -11,9 +13,10 @@ var notebook_id = "{{ notebook_id }}";
 
 {%- block breadcrumbs -%}
 <ol class="breadcrumb">
-  <li><a href="{{ base_url }}/formgrader/gradebook">Manual Grading</a></li>
+  <li><a href="{{ base_url }}/formgrader/gradebook">Manual Grading (Task View)</a></li>
   <li><a href="{{ base_url }}/formgrader/gradebook/{{ assignment_id }}">{{ assignment_id }}</a></li>
-  <li class="active">{{ notebook_id }}</li>
+  <li><a href="{{ base_url }}/formgrader/gradebook/tasks/{{ assignment_id }}/{{ notebook_id }}">{{ notebook_id }}</a></li>
+  <li class="active">{{ task_id }}</li>
 </ol>
 {%- endblock -%}
 

@@ -3,13 +3,22 @@ import os
 
 from tornado import web
 
-from .base import BaseApiHandler, check_xsrf
+from .base import BaseApiHandler, check_xsrf, check_notebook_dir
 from ...api import MissingEntry
+from ...exchange import ExchangeList
+
+
+class StatusHandler(BaseApiHandler):
+    @web.authenticated
+    @check_xsrf
+    def get(self):
+        self.write({"status": True})
 
 
 class GradeCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self):
         submission_id = self.get_argument("submission_id")
         try:
@@ -22,6 +31,7 @@ class GradeCollectionHandler(BaseApiHandler):
 class CommentCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self):
         submission_id = self.get_argument("submission_id")
         try:
@@ -34,6 +44,7 @@ class CommentCollectionHandler(BaseApiHandler):
 class GradeHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, grade_id):
         try:
             grade = self.gradebook.find_grade_by_id(grade_id)
@@ -43,6 +54,7 @@ class GradeHandler(BaseApiHandler):
 
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def put(self, grade_id):
         try:
             grade = self.gradebook.find_grade_by_id(grade_id)
@@ -63,6 +75,7 @@ class GradeHandler(BaseApiHandler):
 class CommentHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, grade_id):
         try:
             comment = self.gradebook.find_comment_by_id(grade_id)
@@ -72,6 +85,7 @@ class CommentHandler(BaseApiHandler):
 
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def put(self, grade_id):
         try:
             comment = self.gradebook.find_comment_by_id(grade_id)
@@ -87,6 +101,7 @@ class CommentHandler(BaseApiHandler):
 class FlagSubmissionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def post(self, submission_id):
         try:
             submission = self.gradebook.find_submission_notebook_by_id(submission_id)
@@ -101,6 +116,7 @@ class FlagSubmissionHandler(BaseApiHandler):
 class AssignmentCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self):
         assignments = self.api.get_assignments()
         self.write(json.dumps(assignments))
@@ -109,6 +125,7 @@ class AssignmentCollectionHandler(BaseApiHandler):
 class AssignmentHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, assignment_id):
         assignment = self.api.get_assignment(assignment_id)
         if assignment is None:
@@ -117,6 +134,7 @@ class AssignmentHandler(BaseApiHandler):
 
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def put(self, assignment_id):
         data = self.get_json_body()
         duedate = data.get("duedate_notimezone", None)
@@ -135,6 +153,7 @@ class AssignmentHandler(BaseApiHandler):
 class NotebookCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, assignment_id):
         notebooks = self.api.get_notebooks(assignment_id)
         self.write(json.dumps(notebooks))
@@ -143,6 +162,7 @@ class NotebookCollectionHandler(BaseApiHandler):
 class SubmissionCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, assignment_id):
         submissions = self.api.get_submissions(assignment_id)
         self.write(json.dumps(submissions))
@@ -151,6 +171,7 @@ class SubmissionCollectionHandler(BaseApiHandler):
 class SubmissionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, assignment_id, student_id):
         submission = self.api.get_submission(assignment_id, student_id)
         if submission is None:
@@ -161,6 +182,7 @@ class SubmissionHandler(BaseApiHandler):
 class SubmittedNotebookCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, assignment_id, notebook_id):
         submissions = self.api.get_notebook_submissions(assignment_id, notebook_id)
         self.write(json.dumps(submissions))
@@ -169,6 +191,7 @@ class SubmittedNotebookCollectionHandler(BaseApiHandler):
 class StudentCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self):
         students = self.api.get_students()
         self.write(json.dumps(students))
@@ -177,6 +200,7 @@ class StudentCollectionHandler(BaseApiHandler):
 class StudentHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, student_id):
         student = self.api.get_student(student_id)
         if student is None:
@@ -185,6 +209,7 @@ class StudentHandler(BaseApiHandler):
 
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def put(self, student_id):
         data = self.get_json_body()
         student = {
@@ -200,6 +225,7 @@ class StudentHandler(BaseApiHandler):
 class StudentSubmissionCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, student_id):
         submissions = self.api.get_student_submissions(student_id)
         self.write(json.dumps(submissions))
@@ -208,6 +234,7 @@ class StudentSubmissionCollectionHandler(BaseApiHandler):
 class StudentNotebookSubmissionCollectionHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def get(self, student_id, assignment_id):
         submissions = self.api.get_student_notebook_submissions(student_id, assignment_id)
         self.write(json.dumps(submissions))
@@ -216,13 +243,15 @@ class StudentNotebookSubmissionCollectionHandler(BaseApiHandler):
 class AssignHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def post(self, assignment_id):
-        self.write(json.dumps(self.api.assign(assignment_id)))
+        self.write(json.dumps(self.api.generate_assignment(assignment_id)))
 
 
 class UnReleaseHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def post(self, assignment_id):
         self.write(json.dumps(self.api.unrelease(assignment_id)))
 
@@ -230,13 +259,15 @@ class UnReleaseHandler(BaseApiHandler):
 class ReleaseHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def post(self, assignment_id):
-        self.write(json.dumps(self.api.release(assignment_id)))
+        self.write(json.dumps(self.api.release_assignment(assignment_id)))
 
 
 class CollectHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def post(self, assignment_id):
         self.write(json.dumps(self.api.collect(assignment_id)))
 
@@ -244,17 +275,72 @@ class CollectHandler(BaseApiHandler):
 class AutogradeHandler(BaseApiHandler):
     @web.authenticated
     @check_xsrf
+    @check_notebook_dir
     def post(self, assignment_id, student_id):
         self.write(json.dumps(self.api.autograde(assignment_id, student_id)))
 
 
+class GenerateAllFeedbackHandler(BaseApiHandler):
+    @web.authenticated
+    @check_xsrf
+    @check_notebook_dir
+    def post(self, assignment_id):
+        self.write(json.dumps(self.api.generate_feedback(assignment_id)))
+
+
+class ReleaseAllFeedbackHandler(BaseApiHandler):
+    @web.authenticated
+    @check_xsrf
+    @check_notebook_dir
+    def post(self, assignment_id):
+        self.write(json.dumps(self.api.release_feedback(assignment_id)))
+
+
+class GenerateFeedbackHandler(BaseApiHandler):
+    @web.authenticated
+    @check_xsrf
+    @check_notebook_dir
+    def post(self, assignment_id, student_id):
+        self.write(json.dumps(self.api.generate_feedback(assignment_id, student_id)))
+
+
+class ReleaseFeedbackHandler(BaseApiHandler):
+    @web.authenticated
+    @check_xsrf
+    @check_notebook_dir
+    def post(self, assignment_id, student_id):
+        self.write(json.dumps(self.api.release_feedback(assignment_id, student_id)))
+
+
+class SolutionCellCollectionHandler(BaseApiHandler):
+    @web.authenticated
+    @check_xsrf
+    def get(self, assignment_id, notebook_id):
+        cells = self.api.get_solution_cell_ids(assignment_id, notebook_id)
+        self.write(json.dumps(cells))
+
+
+class SubmittedTaskCollectionHandler(BaseApiHandler):
+    @web.authenticated
+    @check_xsrf
+    def get(self, assignment_id, notebook_id, task_id):
+        submissions = self.api.get_task_submissions(assignment_id, notebook_id, task_id)
+        self.write(json.dumps(submissions))
+
+
 default_handlers = [
+    (r"/formgrader/api/status", StatusHandler),
+
     (r"/formgrader/api/assignments", AssignmentCollectionHandler),
     (r"/formgrader/api/assignment/([^/]+)", AssignmentHandler),
     (r"/formgrader/api/assignment/([^/]+)/assign", AssignHandler),
     (r"/formgrader/api/assignment/([^/]+)/unrelease", UnReleaseHandler),
     (r"/formgrader/api/assignment/([^/]+)/release", ReleaseHandler),
     (r"/formgrader/api/assignment/([^/]+)/collect", CollectHandler),
+    (r"/formgrader/api/assignment/([^/]+)/generate_feedback", GenerateAllFeedbackHandler),
+    (r"/formgrader/api/assignment/([^/]+)/release_feedback", ReleaseAllFeedbackHandler),
+    (r"/formgrader/api/assignment/([^/]+)/([^/]+)/generate_feedback", GenerateFeedbackHandler),
+    (r"/formgrader/api/assignment/([^/]+)/([^/]+)/release_feedback", ReleaseFeedbackHandler),
 
     (r"/formgrader/api/notebooks/([^/]+)", NotebookCollectionHandler),
 
@@ -276,4 +362,7 @@ default_handlers = [
 
     (r"/formgrader/api/student_submissions/([^/]+)", StudentSubmissionCollectionHandler),
     (r"/formgrader/api/student_notebook_submissions/([^/]+)/([^/]+)", StudentNotebookSubmissionCollectionHandler),
+
+    (r"/formgrader/api/solution_cells/([^/]+)/([^/]+)", SolutionCellCollectionHandler),
+    (r"/formgrader/api/submitted_tasks/([^/]+)/([^/]+)/([^/]+)", SubmittedTaskCollectionHandler),
 ]
