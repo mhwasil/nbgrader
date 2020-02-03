@@ -125,11 +125,7 @@ class ExchangeSubmit(Exchange):
     def add_text_to_cell(self, notebook_file, text, cell_id="hashcode_cell", msg="Ihr Hashcode"):
         nb = nbf.v4.new_notebook()
         nbr = nbf.read(notebook_file, as_version=4)
-        #hash_str = ''.join(str(e) for e in hashcode)
         hash_str = str(text)
-
-        #cell_content = """<div class=\"alert alert-block alert-danger\"> \n\n{}: {} \n\n</div>\n\n
-        #           """.format(msg, hash_str)
 
         cell_content = """<div class=\"alert alert-block alert-danger\"> \n\n{}: </br><h1>{}</h1> \n\n</div>\n\n
                    """.format(msg, hash_str)
@@ -175,10 +171,6 @@ class ExchangeSubmit(Exchange):
         print ("GENERATE: ",html_file)
         os.system('jupyter nbconvert --to html {} {}'.format(hashcoded_notebook_file, html_file))
 
-    def generate_hashcode(self,filename):
-        notebook_file = os.path.join(self.src_path, self.coursedir.assignment_id+".ipynb")
-        return hash_with_md5(notebook_file)
-
     def copy_and_overwrite_dir(self, src, dest):
         distutils.dir_util.copy_tree(src, dest)
 
@@ -187,41 +179,49 @@ class ExchangeSubmit(Exchange):
 
         # Original notebook file
         student_notebook_file = os.path.join(self.src_path, self.coursedir.assignment_id+".ipynb")
+        #check notebook exists
+        if os.path.isfile(student_notebook_file):
+            # Add time stamp to original notebook
+            self.add_text_to_cell(student_notebook_file, self.timestamp, cell_id="timestamp_cell", msg="Timestamp")
 
-        # Add time stamp to original notebook
-        self.add_text_to_cell(student_notebook_file, self.timestamp, cell_id="timestamp_cell", msg="Timestamp")
+            self.log.info("Copying course_dir into .temp")
+            user_home_dir = os.path.abspath(os.path.join(os.path.dirname(self.src_path), '.'))
+            temp_path = os.path.join(user_home_dir, ".temp", self.coursedir.assignment_id)
+            self.copy_and_overwrite_dir(self.src_path, temp_path)
 
-        self.log.info("Copying course_dir into .temp")
-        user_home_dir = os.path.abspath(os.path.join(os.path.dirname(self.src_path), '.'))
-        temp_path = os.path.join(user_home_dir, ".temp", self.coursedir.assignment_id)
-        self.copy_and_overwrite_dir(self.src_path, temp_path)
+            # Compute stamped original notebook
+            hashcode = compute_hashcode(student_notebook_file, method='sha1')
+            cutsize = 20
+            hashcode = hashcode[:cutsize]
+            hashcode = list(hashcode)
+            hashcode = str(''.join(hashcode[0:5])+"-"+''.join(hashcode[5:10])+"-"+''.join(hashcode[10:15])+"-"+''.join(hashcode[15:20]))
+            self.log.info("Hashcode generated: {}".format(hashcode))
 
-        # Compute stamped original notebook
-        hashcode = compute_hashcode(student_notebook_file, method='sha1')
-        cutsize = 10
-        hashcode = hashcode[:cutsize]
-        self.log.info("Hashcode generated: {}".format(hashcode))
+            # Generate file mwasil2s_info.txt
+            with open(os.path.join(self.src_path, "{}_info.txt".format(get_username())), "w") as fh:
+                fh.write("Username: {}\n".format(get_username()))
+                fh.write("Hashcode: {}\n".format(hashcode))
+                fh.write("Timestamp: {}\n".format(self.timestamp))
+            
+            # write hashcode to hashcoded_notebook_version
+            self.log.info("Writing hashcode to .temp version")
+            hashcoded_notebook_file = os.path.join(temp_path, self.coursedir.assignment_id+".ipynb")
+            temp_html_file = os.path.join(temp_path, self.coursedir.assignment_id+".html")
+            self.add_text_to_cell(hashcoded_notebook_file, hashcode, cell_id="hashcode_cell", msg="Ihr Hashcode")
+            
+            # generate html inside the original nbgrader directory     
+            self.log.info("Generate html and copy html to student course dir")  
+            self.generate_html(hashcoded_notebook_file, temp_html_file)
+            
+            # Copy html file to course_dir
+            # Differentiate between the nb file name and the html version with hashcode to avoid conflict when generating feedback
+            html_suffix_file = "hashcode"
+            student_html_file = os.path.join(self.src_path, self.coursedir.assignment_id+"_{}.html".format(html_suffix_file))
+            distutils.file_util.copy_file(temp_html_file, student_html_file)
+        else:
+            self.log.warning("Nbgrader cannot generate hashcode, the assignment is not set up for exam.")
+            self.log.warning("The notebook name and assignment_id should be the same for exam mode")  
 
-        # TODO
-        # Generate file in which file name is username_mwasil2s_hash_hashcode
-        with open(os.path.join(self.src_path, "{}_info.txt".format(get_username())), "w") as fh:
-            fh.write("Username: {}\n".format(get_username()))
-            fh.write("Hashcode: {}\n".format(hashcode))
-            fh.write("Timestamp: {}\n".format(self.timestamp))
-        
-        # write hashcode to hashcoded_notebook_version
-        self.log.info("Writing hashcode to .temp version")
-        hashcoded_notebook_file = os.path.join(temp_path, self.coursedir.assignment_id+".ipynb")
-        temp_html_file = os.path.join(temp_path, self.coursedir.assignment_id+".html")
-        self.add_text_to_cell(hashcoded_notebook_file, hashcode, cell_id="hashcode_cell", msg="Ihr Hashcode")
-        
-        # generate html inside the original nbgrader directory     
-        self.log.info("Generate html and copy html to student course dir")  
-        self.generate_html(hashcoded_notebook_file, temp_html_file)
-        
-        # Copy html file to course_dir
-        student_html_file = os.path.join(self.src_path, self.coursedir.assignment_id+".html")
-        distutils.file_util.copy_file(temp_html_file, student_html_file)
         
         dest_path = os.path.join(self.inbound_path, self.assignment_filename)
         cache_path = os.path.join(self.cache_path, self.assignment_filename)
