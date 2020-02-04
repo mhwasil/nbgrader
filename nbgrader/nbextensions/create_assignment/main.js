@@ -299,6 +299,40 @@ define([
         cell.metadata.nbgrader.task = val;
     };
 
+    var remove_form_metadata = function (cell) {
+        if (cell.metadata.hasOwnProperty("form_cell")) {
+            delete cell.metadata.form_cell;
+        }
+    };
+
+    var is_multiplechoice = function (cell) {
+        return cell.metadata.hasOwnProperty('form_cell') && cell.metadata.form_cell.type === 'multiplechoice';
+    };
+
+    var set_multiplechoice = function (cell, val) {
+        if (cell.metadata.hasOwnProperty('form_cell')) {
+            delete cell.metadata.form_cell;
+        }
+        cell.metadata.form_cell = {
+            "type": "multiplechoice"
+        }        
+    };
+
+    var is_singlechoice = function (cell) {
+        return cell.metadata.hasOwnProperty('form_cell') && cell.metadata.form_cell.type === 'singlechoice';
+    };
+
+    var set_singlelechoice = function (cell, val) {
+        if (cell.metadata.hasOwnProperty('form_cell')) {
+            delete cell.metadata.form_cell;
+        }
+        cell.metadata.form_cell = {
+            "type": "singlechoice"
+        }        
+    };
+
+
+
     var is_graded = function (cell) {
         return ( is_grade(cell) || is_task(cell) );
     };
@@ -435,6 +469,10 @@ define([
             options_list.push(["-", ""]);
             options_list.push(["Manually graded answer", "manual"]);
             options_list.push(["Manually graded task", "task"]);
+            // Form elements
+            options_list.push(["Multiple Choice", "multiplechoice"]);
+            options_list.push(["Single Choice", "singlechoice"]);
+
             if (cell.cell_type == "code") {
                 options_list.push(["Autograded answer", "solution"]);
                 options_list.push(["Autograder tests", "tests"]);
@@ -443,13 +481,16 @@ define([
             var setter = function (cell, val) {
                 if (val === "") {
                     remove_metadata(cell);
+                    remove_form_metadata(cell);
                 } else if (val === "manual") {
+                    remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, true);
                     set_grade(cell, true);
                     set_locked(cell, false);
                     set_task(cell, false);
                 } else if (val === "task") {
+                    remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, false);
@@ -459,12 +500,14 @@ define([
                       cell.set_text('Describe the task here!')
                     }
                 } else if (val === "solution") {
+                    remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, true);
                     set_grade(cell, false);
                     set_locked(cell, false);
                     set_task(cell, false);
                 } else if (val === "tests") {
+                    remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, true);
@@ -476,6 +519,20 @@ define([
                     set_grade(cell, false);
                     set_locked(cell, true);
                     set_task(cell, false);
+                } else if (val === "multiplechoice") {
+                    set_schema_version(cell);
+                    set_solution(cell, true);
+                    set_grade(cell, true);
+                    set_locked(cell, false);
+                    set_task(cell, false);
+                    set_multiplechoice(cell, true);
+                } else if (val === "singlechoice") {
+                    set_schema_version(cell);
+                    set_solution(cell, true);
+                    set_grade(cell, true);
+                    set_locked(cell, false);
+                    set_task(cell, false);
+                    set_singlechoice(cell, true);
                 } else {
                     throw new Error("invalid nbgrader cell type: " + val);
                 }
@@ -492,6 +549,10 @@ define([
                     return "tests";
                 } else if (is_locked(cell)) {
                     return "readonly";
+                } else if (is_multiplechoice(cell)) {
+                    return "multiplechoice";
+                } else if (is_singlechoice(cell)) {
+                    return "singlechoice";
                 } else {
                     return "";
                 }
