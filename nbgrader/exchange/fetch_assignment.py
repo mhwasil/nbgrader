@@ -92,20 +92,15 @@ class ExchangeFetchAssignment(Exchange):
         scrambler = Scramble(seed=hash(student_id))
         permuter = PermuteTasks(seed=hash(student_id))
         for nb_path in nbs:
-        	nb = nbformat.read(nb_path, as_version=4)
-        	resources = {}
-        	nb, resources = scrambler.preprocess(nb, resources)
-        	nb, resources = permuter.preprocess(nb, resources)
-        	nbformat.write(nb, nb_path)
+            nb = nbformat.read(nb_path, as_version=4)
+            if len(nb.cells) > 0 and nb.cells[0].source.startswith('%% scramble'):
+                resources = {}
+                nb, resources = scrambler.preprocess(nb, resources)
+                nb, resources = permuter.preprocess(nb, resources)
+            nbformat.write(nb, nb_path)
         self.log.info("Scrambled")
 
-
-
-
-
-
     def copy_files(self):
-        self.log.info("Potato")
         self.log.info("Outbound path: "+self.outbound_path)
         
         self.log.info("Source: {}".format(self.src_path))
