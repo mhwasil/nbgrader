@@ -16,6 +16,7 @@ from setuptools.archive_util import unpack_tarfile
 from setuptools.archive_util import unpack_zipfile
 from tornado.log import LogFormatter
 from dateutil.tz import gettz
+from datetime import datetime
 
 # pwd is for unix passwords only, so we shouldn't import it on
 # windows machines
@@ -23,6 +24,13 @@ if sys.platform != 'win32':
     import pwd
 else:
     pwd = None
+
+
+def is_task(cell):
+    """Returns True if the cell is a task cell."""
+    if 'nbgrader' not in cell.metadata:
+        return False
+    return cell.metadata['nbgrader'].get('task', False)
 
 
 def is_grade(cell):
@@ -150,15 +158,31 @@ def compute_checksum(cell):
 
     return m.hexdigest()
 
+
 def parse_utc(ts):
     """Parses a timestamp into datetime format, converting it to UTC if necessary."""
     if ts is None:
         return None
     if isinstance(ts, six.string_types):
-        ts = dateutil.parser.parse(ts)
+        parts = ts.split(" ")
+        if len(parts) == 3:
+            ts = " ".join(parts[:2] + ["TZ"])
+            tz = parts[2]
+            try:
+                tz = int(tz)
+            except ValueError:
+                tz = dateutil.tz.gettz(tz)
+            ts = dateutil.parser.parse(ts, tzinfos=dict(TZ=tz))
+        else:
+            ts = dateutil.parser.parse(ts)
     if ts.tzinfo is not None:
         ts = (ts - ts.utcoffset()).replace(tzinfo=None)
     return ts
+
+
+def to_numeric_tz(timezone):
+    """Converts a timezone to a format which can be read by parse_utc."""
+    return as_timezone(datetime.utcnow(), timezone).strftime('%z')
 
 
 def as_timezone(ts, timezone):
@@ -192,11 +216,20 @@ def check_directory(path, read=False, write=False, execute=False):
         return False
 
 
-def get_username():
+def get_osusername():
     """Get the username of the current process."""
     if pwd is None:
         raise OSError("get_username cannot be called on Windows")
     return pwd.getpwuid(os.getuid())[0]
+
+
+def get_username():
+    """ Get the username, use os user name but override if username is jovyan ."""
+    osname = get_osusername()
+    if osname == 'jovyan':
+        return os.environ.get('JUPYTERHUB_USER', 'jovyan')
+    else:
+        return osname
 
 
 def find_owner(path):
@@ -208,7 +241,7 @@ def find_owner(path):
 
 def self_owned(path):
     """Is the path owned by the current user of this process?"""
-    return get_username() == find_owner(os.path.abspath(path))
+    return get_osusername() == find_owner(os.path.abspath(path))
 
 
 def is_ignored(filename, ignore_globs=None):
@@ -282,8 +315,10 @@ def find_all_files(path, exclude=None):
     """Recursively finds all filenames rooted at `path`, optionally excluding
     some based on filename globs."""
     files = []
+    to_skip = []
     for dirname, dirnames, filenames in os.walk(path):
-        if is_ignored(dirname, exclude):
+        if is_ignored(dirname, exclude) or dirname in to_skip:
+            to_skip.extend([os.path.join(dirname, x) for x in dirnames])
             continue
         for filename in filenames:
             fullpath = os.path.join(dirname, filename)
@@ -522,3 +557,4 @@ def notebook_hash(path, unique_key=None):
 def make_unique_key(course_id, assignment_id, notebook_id, student_id, timestamp):
     return "+".join([
         course_id, assignment_id, notebook_id, student_id, timestamp])
+

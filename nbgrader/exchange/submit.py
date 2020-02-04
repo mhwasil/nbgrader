@@ -1,3 +1,4 @@
+import base64
 import os
 from stat import (
     S_IRUSR, S_IWUSR, S_IXUSR,
@@ -26,6 +27,13 @@ class ExchangeSubmit(Exchange):
         )
     ).tag(config=True)
 
+    add_random_string = Bool(
+        True,
+        help=dedent(
+            "Whether to add a random string on the end of the submission."
+        )
+    ).tag(config=True)
+
     def init_src(self):
         if self.path_includes_course:
             root = os.path.join(self.coursedir.course_id, self.coursedir.assignment_id)
@@ -36,7 +44,7 @@ class ExchangeSubmit(Exchange):
         self.src_path = os.path.abspath(os.path.join(self.assignment_dir, root))
         self.coursedir.assignment_id = os.path.split(self.src_path)[-1]
         if not os.path.isdir(self.src_path):
-            self.fail("Assignment not found: {}".format(self.src_path))
+            self._assignment_not_found(self.src_path, os.path.abspath(other_path))
 
     def init_dest(self):
         if self.coursedir.course_id == '':

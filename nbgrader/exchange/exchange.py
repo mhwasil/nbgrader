@@ -7,7 +7,6 @@ import glob
 from textwrap import dedent
 
 from dateutil.tz import gettz
-from dateutil import tz
 from traitlets.config import LoggingConfigurable
 from traitlets import Unicode, Bool, Instance, Type, default, validate
 from jupyter_core.paths import jupyter_data_dir
@@ -16,6 +15,7 @@ from ..utils import check_directory, ignore_patterns, self_owned
 from ..coursedir import CourseDirectory
 from ..auth import Authenticator
 
+from dateutil import tz
 
 class ExchangeError(Exception):
     pass
@@ -83,8 +83,6 @@ class Exchange(LoggingConfigurable):
 
     def set_timestamp(self):
         """Set the timestap using the configured timezone."""
-        # Use UTC timezon
-        #tz_utc = gettz(self.timezone)
         # Use local time zone
         tz_local = tz.tzlocal()
         if tz is None:
