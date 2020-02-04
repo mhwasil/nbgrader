@@ -175,13 +175,23 @@ class ExchangeSubmit(Exchange):
                 f.close()
 
     def generate_html(self, hashcoded_notebook_file, html_file):
-        print("Convert to html using nbconvert")
-        print ("GENERATE: ",html_file)
+        self.log.info("Converting to html using nbconvert")
         os.system('jupyter nbconvert --to html {} {}'.format(hashcoded_notebook_file, html_file))
 
     def copy_and_overwrite_dir(self, src, dest):
+        if not os.path.exists(src):
+            self.log.info("Source does not exists: ", src)
+            return False
         distutils.dir_util.copy_tree(src, dest)
-
+        return True    
+    
+    def copy_and_overwrite_file(self, src, dest):
+        if not os.path.exists(src):
+            self.log.info("Source does not exists: ", src)
+            return False
+        distutils.file_util.copy_file(src, dest)
+        return True    
+    
     def copy_files(self):
         self.init_release()
 
@@ -218,14 +228,18 @@ class ExchangeSubmit(Exchange):
             self.add_text_to_cell(hashcoded_notebook_file, hashcode, cell_id="hashcode_cell", msg="Ihr Hashcode")
             
             # generate html inside the original nbgrader directory     
-            self.log.info("Generate html and copy html to student course dir")  
+            self.log.info("Generating html and copy html to student course dir")  
             self.generate_html(hashcoded_notebook_file, temp_html_file)
-            
             # Copy html file to course_dir
             # Differentiate between the nb file name and the html version with hashcode to avoid conflict when generating feedback
             html_suffix_file = "hashcode"
             student_html_file = os.path.join(self.src_path, self.coursedir.assignment_id+"_{}.html".format(html_suffix_file))
-            distutils.file_util.copy_file(temp_html_file, student_html_file)
+            # check html file exists, otherwise still submit the assignment
+            self.log.info("Copying html from .temp directory to student course dir")  
+            if self.copy_and_overwrite_file(temp_html_file, student_html_file):
+                self.log.info("There is no html file in user temp, it may fail to generate one")
+            else:
+                self.log.info("Html version is copied to assignment directory")
         else:
             self.log.warning("Nbgrader cannot generate hashcode, the assignment is not set up for exam.")
             self.log.warning("The notebook name and assignment_id should be the same for exam mode")  
