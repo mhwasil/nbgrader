@@ -136,6 +136,10 @@ class ClearSolutions(NbGraderPreprocessor):
         return nb, resources
 
     def preprocess_cell(self, cell, resources, cell_index):
+        # Ignore form cells
+        if cell.cell_type == "markdown" and "form_cell" in cell.metadata:
+            return cell, resources
+            
         # replace solution regions with the relevant stubs
         language = resources["language"]
         replaced_solution = self._replace_solution_region(cell, language)
