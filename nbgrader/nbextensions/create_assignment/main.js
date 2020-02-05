@@ -302,6 +302,10 @@ define([
     var remove_form_metadata = function (cell) {
         if (cell.metadata.hasOwnProperty("form_cell")) {
             delete cell.metadata.form_cell;
+            if (cell.rendered) {
+                cell.unrender();
+                cell.render();
+            }
         }
     };
 
@@ -322,7 +326,7 @@ define([
         return cell.metadata.hasOwnProperty('form_cell') && cell.metadata.form_cell.type === 'singlechoice';
     };
 
-    var set_singlelechoice = function (cell, val) {
+    var set_singlechoice = function (cell, val) {
         if (cell.metadata.hasOwnProperty('form_cell')) {
             delete cell.metadata.form_cell;
         }
@@ -482,6 +486,30 @@ define([
                 if (val === "") {
                     remove_metadata(cell);
                     remove_form_metadata(cell);
+                } else if (val === "multiplechoice") {
+                    //remove_form_metadata(cell);
+                    set_schema_version(cell);
+                    set_solution(cell, true);
+                    set_grade(cell, true);
+                    set_locked(cell, false);
+                    set_task(cell, false);                    
+                    set_multiplechoice(cell, true);
+                    if (cell.rendered) {
+                        cell.unrender();
+                        cell.render();
+                    }
+                } else if (val === "singlechoice") {
+                    //remove_form_metadata(cell);
+                    set_schema_version(cell);
+                    set_solution(cell, true);
+                    set_grade(cell, true);
+                    set_locked(cell, false);
+                    set_task(cell, false);
+                    set_singlechoice(cell, true);
+                    if (cell.rendered) {
+                        cell.unrender();
+                        cell.render();
+                    }
                 } else if (val === "manual") {
                     remove_form_metadata(cell);
                     set_schema_version(cell);
@@ -514,25 +542,12 @@ define([
                     set_locked(cell, true);
                     set_task(cell, false);
                 } else if (val === "readonly") {
+                    remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, false);
                     set_locked(cell, true);
                     set_task(cell, false);
-                } else if (val === "multiplechoice") {
-                    set_schema_version(cell);
-                    set_solution(cell, true);
-                    set_grade(cell, true);
-                    set_locked(cell, false);
-                    set_task(cell, false);
-                    set_multiplechoice(cell, true);
-                } else if (val === "singlechoice") {
-                    set_schema_version(cell);
-                    set_solution(cell, true);
-                    set_grade(cell, true);
-                    set_locked(cell, false);
-                    set_task(cell, false);
-                    set_singlechoice(cell, true);
                 } else {
                     throw new Error("invalid nbgrader cell type: " + val);
                 }
@@ -541,6 +556,10 @@ define([
             var getter = function (cell) {
                 if (is_task(cell)) {
                     return "task";
+                } else if (is_multiplechoice(cell)) {
+                    return "multiplechoice";
+                } else if (is_singlechoice(cell)) {
+                    return "singlechoice";
                 } else if (is_solution(cell) && is_grade(cell)) {
                     return "manual";
                 } else if (is_solution(cell) && cell.cell_type === "code") {
@@ -549,10 +568,6 @@ define([
                     return "tests";
                 } else if (is_locked(cell)) {
                     return "readonly";
-                } else if (is_multiplechoice(cell)) {
-                    return "multiplechoice";
-                } else if (is_singlechoice(cell)) {
-                    return "singlechoice";
                 } else {
                     return "";
                 }
