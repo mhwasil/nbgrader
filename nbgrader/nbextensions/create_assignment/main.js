@@ -474,8 +474,10 @@ define([
             options_list.push(["Manually graded answer", "manual"]);
             options_list.push(["Manually graded task", "task"]);
             // Form elements
-            options_list.push(["Multiple Choice", "multiplechoice"]);
-            options_list.push(["Single Choice", "singlechoice"]);
+            if (cell.cell_type == "markdown") {
+                options_list.push(["Multiple Choice", "multiplechoice"]);
+                options_list.push(["Single Choice", "singlechoice"]);
+            }
 
             if (cell.cell_type == "code") {
                 options_list.push(["Autograded answer", "solution"]);
