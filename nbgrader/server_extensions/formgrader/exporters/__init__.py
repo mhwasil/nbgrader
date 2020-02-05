@@ -47,6 +47,6 @@ class MyExporter(HTMLExporter):
         return soup.prettify().replace('\n', '')
 
     def default_filters(self):
-        for pair in super(MyExporter, self).default_filters():
+        for pair in super(FormExporter, self).default_filters():
             yield pair
         yield ('to_choicecell', self.to_choicecell)
