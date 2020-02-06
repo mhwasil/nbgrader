@@ -137,14 +137,7 @@ class ClearSolutions(NbGraderPreprocessor):
 
     def preprocess_cell(self, cell, resources, cell_index):
         # Ignore form cells
-        if utils.is_singlechoice(cell) or utils.is_multiplechoice(cell):
-            # Clear choices
-            if 'choice' in cell.metadata.form_cell:
-                cell.metadata.form_cell.choice = []
-            # Clear weights
-            if 'weights' in cell.metadata.form_cell:
-                cell.metadata.form_cell.weights = []
-
+        if utils.is_form_cell(cell):
             return cell, resources
             
         # replace solution regions with the relevant stubs
