@@ -238,15 +238,15 @@ class ExchangeList(Exchange):
         
         #make outbound dir read- and write- able, todo: FIXME, use the path defined in config
         outbound_dir = os.path.join("/srv/nbgrader/exchange/Klausur/outbound")
-        os.chmod(outbound_dir, self.oread_perms)
+        os.chmod(outbound_dir, self.orx_perms)
         
         for assignment in self.assignments:
             # make assignment dir readable and writable
-            os.chmod(assignment, self.oreadwrite_perms)
+            os.chmod(assignment, self.orwx_perms)
             shutil.rmtree(assignment)
 
         #make outbound_dir readable again        
-        os.chmod(outbound_dir, self.oread_perms)
+        os.chmod(outbound_dir, self.orx_perms)
 
         return assignments
 
