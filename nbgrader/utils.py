@@ -25,6 +25,12 @@ if sys.platform != 'win32':
 else:
     pwd = None
 
+def is_form_cell(cell):
+    """Returns True if the cell is a form cell."""
+    if 'nbgrader' not in cell.metadata:
+        return False
+    return 'form_cell' in cell.metadata
+
 
 def is_task(cell):
     """Returns True if the cell is a task cell."""
@@ -95,7 +101,7 @@ def determine_grade(cell, log=None):
         raise ValueError("cell is not a grade cell")
 
     max_points = float(cell.metadata['nbgrader']['points'])
-    if is_solution(cell):
+    if is_solution(cell) and not is_form_cell(cell):
         # if it's a solution cell and the checksum hasn't changed, that means
         # they didn't provide a response, so we can automatically give this a
         # zero grade
