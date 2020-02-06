@@ -235,9 +235,18 @@ class ExchangeList(Exchange):
             self.log.info("Removing released assignments:")
             for info in assignments:
                 self.log.info(self.format_outbound_assignment(info))
-
+        
+        #make outbound dir read- and write- able, todo: FIXME, use the path defined in config
+        outbound_dir = os.path.join("/srv/nbgrader/exchange/Klausur/outbound")
+        os.chmod(outbound_dir, self.orx_perms)
+        
         for assignment in self.assignments:
+            # make assignment dir readable and writable
+            os.chmod(assignment, self.orwx_perms)
             shutil.rmtree(assignment)
+
+        #make outbound_dir readable again        
+        os.chmod(outbound_dir, self.orx_perms)
 
         return assignments
 

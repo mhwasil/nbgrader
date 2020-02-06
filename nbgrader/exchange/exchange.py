@@ -15,6 +15,8 @@ from ..utils import check_directory, ignore_patterns, self_owned
 from ..coursedir import CourseDirectory
 from ..auth import Authenticator
 
+from dateutil import tz
+from stat import (S_IRUSR, S_IWUSR, S_IXUSR, S_IRGRP, S_IWGRP, S_IXGRP, S_IROTH, S_IWOTH, S_IXOTH)
 
 class ExchangeError(Exception):
     pass
@@ -75,6 +77,10 @@ class Exchange(LoggingConfigurable):
         self.coursedir = coursedir
         self.authenticator = authenticator
         super(Exchange, self).__init__(**kwargs)
+        self.owx_perms = (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IWOTH|S_IXOTH)
+        self.ow_perms = (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IWOTH)
+        self.orx_perms = (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH)
+        self.orwx_perms = (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IWOTH|S_IXOTH)
 
     def fail(self, msg):
         self.log.fatal(msg)
@@ -82,10 +88,11 @@ class Exchange(LoggingConfigurable):
 
     def set_timestamp(self):
         """Set the timestap using the configured timezone."""
-        tz = gettz(self.timezone)
+        # Use local time zone
+        tz_local = tz.tzlocal()
         if tz is None:
             self.fail("Invalid timezone: {}".format(self.timezone))
-        self.timestamp = datetime.datetime.now(tz).strftime(self.timestamp_format)
+        self.timestamp = datetime.datetime.now(tz_local).strftime(self.timestamp_format)
 
     def set_perms(self, dest, fileperms, dirperms):
         all_dirs = []
@@ -99,7 +106,7 @@ class Exchange(LoggingConfigurable):
 
     def ensure_root(self):
         """See if the exchange directory exists and is writable, fail if not."""
-        if not check_directory(self.root, write=True, execute=True):
+        if not check_directory(self.root, write=False, execute=False):
             self.fail("Unwritable directory, please contact your instructor: {}".format(self.root))
 
     def init_src(self):
@@ -121,11 +128,16 @@ class Exchange(LoggingConfigurable):
         specified by the options coursedir.ignore, coursedir.include
         and coursedir.max_file_size.
         """
-        shutil.copytree(src, dest,
+        try:
+            shutil.copytree(src, dest,
                         ignore=ignore_patterns(exclude=self.coursedir.ignore,
                                                include=self.coursedir.include,
                                                max_file_size=self.coursedir.max_file_size,
                                                log=self.log))
+        except (shutil.Error, OSError) as e:
+            self.log.error("Error copying: ".format(src))
+            return False
+
         # copytree copies access mode too - so we must add go+rw back to it if
         # we are in groupshared.
         if self.coursedir.groupshared:
@@ -146,7 +158,8 @@ class Exchange(LoggingConfigurable):
                             os.chmod(filename, (st_mode|0o660) & 0o777)
                         except PermissionError:
                             self.log.warning("Could not update permissions of %s to make it groupshared", filename)
-
+        return True      
+  
     def start(self):
         if sys.platform == 'win32':
             self.fail("Sorry, the exchange is not available on Windows.")

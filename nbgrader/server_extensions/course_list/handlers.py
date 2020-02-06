@@ -50,7 +50,7 @@ class CourseListHandler(IPythonHandler):
         config_found = False
         full_config = Config()
         for config in NbGrader._load_config_files("nbgrader_config", path=paths, log=self.log):
-            full_config.merge(config)
+            full_config.merge(config[0])
             config_found = True
 
         if not config_found:

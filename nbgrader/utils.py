@@ -349,6 +349,17 @@ def full_split(path):
     else:
         return full_split(rest) + (last,)
 
+def compute_hashcode(filename, method='md5'):
+    if method=='md5':
+        hashcode = hashlib.md5()
+    elif method=='sha1':
+        hashcode = hashlib.sha1()
+
+    with open(filename, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hashcode.update(chunk)
+            
+    return hashcode.hexdigest()
 
 @contextlib.contextmanager
 def chdir(dirname):
@@ -546,3 +557,4 @@ def notebook_hash(path, unique_key=None):
 def make_unique_key(course_id, assignment_id, notebook_id, student_id, timestamp):
     return "+".join([
         course_id, assignment_id, notebook_id, student_id, timestamp])
+
