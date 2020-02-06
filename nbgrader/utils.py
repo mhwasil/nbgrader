@@ -32,6 +32,14 @@ def is_form_cell(cell):
     return 'form_cell' in cell.metadata
 
 
+def is_singlechoice(cell):
+    return is_form_cell(cell) and cell.metadata.form_cell.type == 'singlechoice'
+
+
+def is_multiplechoice(cell):
+    return is_form_cell(cell) and cell.metadata.form_cell.type == 'multiplechoice'
+
+
 def is_task(cell):
     """Returns True if the cell is a task cell."""
     if 'nbgrader' not in cell.metadata:
