@@ -109,7 +109,20 @@ def determine_grade(cell, log=None):
         raise ValueError("cell is not a grade cell")
 
     max_points = float(cell.metadata['nbgrader']['points'])
-    if is_solution(cell) and not is_form_cell(cell):
+
+    if is_form_cell(cell):
+        if is_singlechoice(cell):
+            # Get the choices of the student
+            student_choices = cell.metadata.form_cell.choice
+            # Get the instructor choices
+            instructor_choices = cell.metadata.form_cell.source.choice
+            if student_choices[0] == instructor_choices[0]:
+                return max_points, max_points
+            else:
+                return 0, max_points
+        elif is_multiplechoice(cell):
+            return None, max_points
+    elif is_solution(cell):
         # if it's a solution cell and the checksum hasn't changed, that means
         # they didn't provide a response, so we can automatically give this a
         # zero grade
