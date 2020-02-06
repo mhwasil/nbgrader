@@ -2,7 +2,7 @@
 
 import os
 
-from .exporters import FormExporter
+from ...exporters import FormExporter
 from traitlets import default
 from tornado import web
 from jinja2 import Environment, FileSystemLoader
