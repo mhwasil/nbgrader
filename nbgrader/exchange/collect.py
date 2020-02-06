@@ -62,7 +62,7 @@ class ExchangeCollect(Exchange):
             self.fail("Course not found: {}".format(self.inbound_path))
         
         # Set inboud to be write- and read-able
-        os.chmod(self.inbound_path, self.oreadwrite_perms)
+        os.chmod(self.inbound_path, self.orwx_perms)
 
         if not check_mode(self.inbound_path, read=True, execute=True):
             self.fail("You don't have read permissions for the directory: {}".format(self.inbound_path))
@@ -73,7 +73,7 @@ class ExchangeCollect(Exchange):
         self.src_records = [self._sort_by_timestamp(v)[0] for v in usergroups.values()]
         
         # Set inboud to be writetable only
-        os.chmod(self.inbound_path, self.owrite_perms)
+        os.chmod(self.inbound_path, self.ow_perms)
 
     def init_dest(self):
         pass
@@ -135,7 +135,9 @@ class ExchangeCollect(Exchange):
                         shutil.rmtree(hashed_dest_path)
                 else:
                     self.log.info("Collecting submission: {} {}".format(student_id, self.coursedir.assignment_id))
-                self.do_copy(src_path, dest_path)
+                if not self.do_copy(src_path, dest_path):
+                    self.log.error("Inbound path should be rwx by instructor: sudo chmod -R o+rwx {}".format(self.inbound_path))
+                    return 
                 # Create hashed_submission
                 self.do_copy(src_path, hashed_dest_path)
             else:
