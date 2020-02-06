@@ -392,6 +392,9 @@ class SourceCell(Base):
     #: The source code or text of the cell
     source = Column(Text())
 
+    #: The metadata of the cell
+    metadata_extra = Column(Text())
+
     #: A checksum of the cell contents. This should usually be computed
     #: using :func:`nbgrader.utils.compute_checksum`
     checksum = Column(String(128))
@@ -419,6 +422,7 @@ class SourceCell(Base):
             "cell_type": self.cell_type,
             "locked": self.locked,
             "source": self.source,
+            "metadata_extra": self.metadata_extra,
             "checksum": self.checksum,
             "notebook": self.notebook.name,
             "assignment": self.assignment.name
