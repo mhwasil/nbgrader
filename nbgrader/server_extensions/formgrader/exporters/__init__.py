@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 # Classes
 #-----------------------------------------------------------------------------
 
-class MyExporter(HTMLExporter):
+class FormExporter(HTMLExporter):
     """
     My custom exporter
     """
