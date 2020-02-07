@@ -57,7 +57,7 @@ class SaveAutoGrades(NbGraderPreprocessor):
             self.notebook_id,
             self.assignment_id,
             self.student_id)
-        if cell.metadata.nbgrader.get("checksum", None) == utils.compute_checksum(cell) and not utils.is_task(cell):
+        if cell.metadata.nbgrader.get("checksum", None) == utils.compute_checksum(cell) and not utils.is_task(cell) and not utils.is_form_cell(cell):
             comment.auto_comment = "No response."
         else:
             comment.auto_comment = None
