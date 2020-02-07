@@ -642,6 +642,10 @@ define([
         set_points(cell, get_points(cell));
         update_total();
 
+        if (is_multiplechoice(cell)) {
+            text.attr('disabled', 'disabled');
+        }
+
         text.change(function () {
             set_points(cell, text.val());
             text.val(get_points(cell));
