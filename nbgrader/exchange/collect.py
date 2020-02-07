@@ -61,9 +61,6 @@ class ExchangeCollect(Exchange):
         if not os.path.isdir(self.inbound_path):
             self.fail("Course not found: {}".format(self.inbound_path))
         
-        # Set inboud to be write- and read-able
-        os.chmod(self.inbound_path, self.orwx_perms)
-
         if not check_mode(self.inbound_path, read=True, execute=True):
             self.fail("You don't have read permissions for the directory: {}".format(self.inbound_path))
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
@@ -71,9 +68,6 @@ class ExchangeCollect(Exchange):
         records = [self._path_to_record(f) for f in glob.glob(pattern)]
         usergroups = groupby(records, lambda item: item['username'])
         self.src_records = [self._sort_by_timestamp(v)[0] for v in usergroups.values()]
-        
-        # Set inboud to be writetable only
-        os.chmod(self.inbound_path, self.ow_perms)
 
     def init_dest(self):
         pass
