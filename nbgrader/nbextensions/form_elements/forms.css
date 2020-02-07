@@ -10,6 +10,7 @@
   padding: 2.5em;
 }
 
-.hbrs_checkbox input {
-  margin-left: -1.7em;
+.hbrs_points {
+    width: 3.5em;
+    margin-left: 1em;
 }
