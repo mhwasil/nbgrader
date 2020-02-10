@@ -104,7 +104,8 @@ setup_args = dict(
         "jsonschema",
         "alembic",
         "fuzzywuzzy",
-        "bs4"
+        "bs4",
+        "pandas"
     ]
 )
 
