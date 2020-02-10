@@ -57,6 +57,7 @@ function toggle_name(on) {
               <li><a href="{{ resources.base_url }}/formgrader/gradebook/?view=task">Manual Grading (Task View)</a></li>
               <li><a href="{{ resources.base_url }}/formgrader/gradebook/{{ resources.assignment_id }}/?view=task">{{ resources.assignment_id }}</a></li>
               <li><a href="{{ resources.base_url }}/formgrader/gradebook/tasks/{{ resources.assignment_id }}/{{ resources.notebook_id }}">{{ resources.notebook_id }}</a></li>
+              <li><a href="{{ resources.base_url }}/formgrader/gradebook/{{ resources.assignment_id }}/{{ resources.notebook_id }}/?view=task&filter={{ resources.keyword }}">{{ resources.keyword }}</a></li>
             {%- else -%}
               <li><a href="{{ resources.base_url }}/formgrader/gradebook">Manual Grading</a></li>
               <li><a href="{{ resources.base_url }}/formgrader/gradebook/{{ resources.assignment_id }}">{{ resources.assignment_id }}</a></li>
