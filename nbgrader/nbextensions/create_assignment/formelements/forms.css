@@ -1,0 +1,16 @@
+.hbrs_radio {
+  padding: 2.5em;
+}
+
+.hbrs_radio input {
+  margin-left: -1.7em;
+}
+
+.hbrs_checkbox {
+  padding: 2.5em;
+}
+
+.hbrs_points {
+    width: 3.5em;
+    margin-left: 1em;
+}
