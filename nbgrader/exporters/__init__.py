@@ -37,11 +37,27 @@ class FormExporter(HTMLExporter):
             box['value'] = i
             box['disabled'] = 'disabled'
             if str(i) in metadata['form_cell']['choice']:
-                box['checked'] = 'checked'
+                box['checked'] = 'checked'                
             div.append(box)
             children = [c for c in list_elems[i].children]
             for child in children:
                 div.append(child)
+
+            if 'source' in metadata['form_cell']:
+                check = soup.new_tag('span')
+                if str(i) in metadata['form_cell']['source']['choice']:
+                    check.string = 'correct'
+                    check['style'] = 'color:green'
+                else:
+                    check.string = 'false'
+                    check['style'] = 'color:red'
+                if 'weights' in metadata['form_cell']['source']:
+                    weight = metadata['form_cell']['source']['weights'][i]
+                    if weight > 0:
+                        check.append('[+{} point(s)]'.format(weight))
+                    else:
+                        check.append('[{} point(s)]'.format(weight))
+                div.append(check)
             form.append(div)
         soup.ul.replaceWith(form)
         return soup.prettify().replace('\n', '')
