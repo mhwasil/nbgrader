@@ -55,7 +55,7 @@ class GenerateFeedback(BaseConverter):
 
     def __init__(self, coursedir=None, **kwargs):
         super(GenerateFeedback, self).__init__(coursedir=coursedir, **kwargs)
-        c = Config()xporter:
+        c = Config()
         c.FormExporter.template_file = 'feedback.tpl'
         if 'template_path' not in self.config.FormExporter:
             template_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'server_extensions', 'formgrader', 'templates'))
