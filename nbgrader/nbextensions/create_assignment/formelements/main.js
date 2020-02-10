@@ -89,35 +89,33 @@ define([
                 }).append('Edit cell');
     };
 
-    function multiplechoice_callback(input, cell, index, points) {
-        var weight = get_weights(cell)[index];
-        if (input.checked) {
-            if (weight < 0) {
-                cell.metadata[form_metadata].weights[index] = -weight;
-                points.attr('value', -weight);
-            }
-            var cur_choices = get_choices(cell);
-            cur_choices.push(input.value);
-            cell.metadata[form_metadata].choice = cur_choices;
-        } else {
-            if (weight > 0) {
-                cell.metadata[form_metadata].weights[index] = -weight;
-                points.attr('value', -weight);
-            }
-            var idx = get_choices(cell).indexOf(input.value);
-            if (idx > -1) {
-                cell.metadata[form_metadata].choice.splice(idx, 1);
-            }
-        }
-        update_nbgrader_points(cell);
-    };
-
     var create_checkbox = function(name, value, selected, points, cell) {
         var input = $('<input>')
                         .attr('type', 'checkbox')
                         .attr('name', name)
                         .attr('value', value);
-        input.change(multiplechoice_callback(input, cell, value, points));
+        input.change(function () {
+            var weight = get_weights(cell)[value];
+            if (this.checked) {
+                if (weight < 0) {
+                    cell.metadata[form_metadata].weights[value] = -weight;
+                    points.attr('value', -weight);
+                }
+                var cur_choices = get_choices(cell);
+                cur_choices.push(this.value);
+                cell.metadata[form_metadata].choice = cur_choices;
+            } else {
+                if (weight > 0) {
+                    cell.metadata[form_metadata].weights[value] = -weight;
+                    points.attr('value', -weight);
+                }
+                var idx = get_choices(cell).indexOf(this.value);
+                if (idx > -1) {
+                    cell.metadata[form_metadata].choice.splice(idx, 1);
+                }
+            }
+        update_nbgrader_points(cell);
+        });
 
         if (selected) {
             input.attr('checked', 'checked');
