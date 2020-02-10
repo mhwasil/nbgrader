@@ -127,8 +127,8 @@ def determine_grade(cell, log=None):
             instructor_weights = cell.metadata.form_cell.source.weights
             points = 0
             for choice in student_choices:
-                points += max(0, int(instructor_weights[int(choice)]))
-            return points, max_points
+                points += int(instructor_weights[int(choice)])
+            return max(0, points), max_points
     elif is_solution(cell):
         # if it's a solution cell and the checksum hasn't changed, that means
         # they didn't provide a response, so we can automatically give this a
