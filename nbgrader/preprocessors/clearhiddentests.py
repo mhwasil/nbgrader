@@ -85,6 +85,14 @@ class ClearHiddenTests(NbGraderPreprocessor):
         return nb, resources
 
     def preprocess_cell(self, cell, resources, cell_index):
+        if utils.is_multiplechoice(cell) or utils.is_singlechoice(cell):
+            # Clear choices
+            if 'choice' in cell.metadata.form_cell:
+                cell.metadata.form_cell.choice = []
+            # Clear weights
+            if 'weights' in cell.metadata.form_cell:
+                cell.metadata.form_cell.weights = []
+            return cell, resources
         # remove hidden test regions
         removed_test = self._remove_hidden_test_region(cell)
 

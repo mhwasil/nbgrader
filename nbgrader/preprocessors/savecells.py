@@ -160,6 +160,7 @@ class SaveCells(NbGraderPreprocessor):
             'cell_type': cell.cell_type,
             'locked': utils.is_locked(cell),
             'source': cell.source,
+            'metadata_extra': str(cell.metadata),
             'checksum': cell.metadata.nbgrader.get('checksum', None)
         })
 

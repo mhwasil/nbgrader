@@ -4,9 +4,10 @@ define([
     'base/js/namespace',
     'base/js/dialog',
     'notebook/js/celltoolbar',
-    'base/js/events'
+    'base/js/events',
+    './formelements/main'
 
-], function (require, $, Jupyter, dialog, celltoolbar, events) {
+], function (require, $, Jupyter, dialog, celltoolbar, events, formelements) {
     "use strict";
 
     var nbgrader_preset_name = "Create Assignment";
@@ -33,6 +34,9 @@ define([
         for (var i=0; i < CellToolbar._instances.length; i++) {
             events.trigger('global_hide.CellToolbar', CellToolbar._instances[i].cell);
         }
+        formelements.unpatch_MarkdownCell_render();
+        formelements.unpatch_MarkdownCell_unrender();
+        formelements.render_form_cells();
     };
 
     // show the total points when the preset is activated
@@ -42,6 +46,7 @@ define([
 
         var elem = $("#nbgrader-total-points-group");
         if (preset.name === nbgrader_preset_name) {
+
             if (elem.length == 0) {
                 elem = $("<div />").attr("id", "nbgrader-total-points-group");
                 elem.addClass("btn-group");
@@ -52,9 +57,15 @@ define([
                             .attr("id", "nbgrader-total-points"));
                 $("#maintoolbar-container").append(elem);
             }
+            formelements.patch_MarkdownCell_render();
+            formelements.patch_MarkdownCell_unrender();
+            formelements.render_form_cells();
             elem.show();
             update_total();
         } else {
+            formelements.unpatch_MarkdownCell_render();
+            formelements.unpatch_MarkdownCell_unrender();
+            formelements.render_form_cells();
             elem.hide();
         }
     });
@@ -299,6 +310,44 @@ define([
         cell.metadata.nbgrader.task = val;
     };
 
+    var remove_form_metadata = function (cell) {
+        if (cell.metadata.hasOwnProperty("form_cell")) {
+            delete cell.metadata.form_cell;
+            if (cell.rendered) {
+                cell.unrender();
+                cell.render();
+            }
+        }
+    };
+
+    var is_multiplechoice = function (cell) {
+        return cell.metadata.hasOwnProperty('form_cell') && cell.metadata.form_cell.type === 'multiplechoice';
+    };
+
+    var set_multiplechoice = function (cell, val) {
+        if (cell.metadata.hasOwnProperty('form_cell')) {
+            delete cell.metadata.form_cell;
+        }
+        cell.metadata.form_cell = {
+            "type": "multiplechoice"
+        }        
+    };
+
+    var is_singlechoice = function (cell) {
+        return cell.metadata.hasOwnProperty('form_cell') && cell.metadata.form_cell.type === 'singlechoice';
+    };
+
+    var set_singlechoice = function (cell, val) {
+        if (cell.metadata.hasOwnProperty('form_cell')) {
+            delete cell.metadata.form_cell;
+        }
+        cell.metadata.form_cell = {
+            "type": "singlechoice"
+        }        
+    };
+
+
+
     var is_graded = function (cell) {
         return ( is_grade(cell) || is_task(cell) );
     };
@@ -435,6 +484,12 @@ define([
             options_list.push(["-", ""]);
             options_list.push(["Manually graded answer", "manual"]);
             options_list.push(["Manually graded task", "task"]);
+            // Form elements
+            if (cell.cell_type == "markdown") {
+                options_list.push(["Multiple Choice", "multiplechoice"]);
+                options_list.push(["Single Choice", "singlechoice"]);
+            }
+
             if (cell.cell_type == "code") {
                 options_list.push(["Autograded answer", "solution"]);
                 options_list.push(["Autograder tests", "tests"]);
@@ -443,13 +498,40 @@ define([
             var setter = function (cell, val) {
                 if (val === "") {
                     remove_metadata(cell);
+                    formelements.remove_form_metadata(cell);
+                } else if (val === "multiplechoice") {
+                    //remove_form_metadata(cell);
+                    set_schema_version(cell);
+                    set_solution(cell, true);
+                    set_grade(cell, true);
+                    set_locked(cell, false);
+                    set_task(cell, false);                    
+                    formelements.to_multiplechoice(cell);
+                    if (cell.rendered) {
+                        cell.unrender_force();
+                        cell.render();
+                    }
+                } else if (val === "singlechoice") {
+                    //remove_form_metadata(cell);
+                    set_schema_version(cell);
+                    set_solution(cell, true);
+                    set_grade(cell, true);
+                    set_locked(cell, false);
+                    set_task(cell, false);
+                    formelements.to_singlechoice(cell, true);
+                    if (cell.rendered) {
+                        cell.unrender_force();
+                        cell.render();
+                    }
                 } else if (val === "manual") {
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, true);
                     set_grade(cell, true);
                     set_locked(cell, false);
                     set_task(cell, false);
                 } else if (val === "task") {
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, false);
@@ -459,18 +541,21 @@ define([
                       cell.set_text('Describe the task here!')
                     }
                 } else if (val === "solution") {
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, true);
                     set_grade(cell, false);
                     set_locked(cell, false);
                     set_task(cell, false);
                 } else if (val === "tests") {
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, true);
                     set_locked(cell, true);
                     set_task(cell, false);
                 } else if (val === "readonly") {
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, false);
@@ -484,6 +569,10 @@ define([
             var getter = function (cell) {
                 if (is_task(cell)) {
                     return "task";
+                } else if (formelements.is_multiplechoice(cell)) {
+                    return "multiplechoice";
+                } else if (formelements.is_singlechoice(cell)) {
+                    return "singlechoice";
                 } else if (is_solution(cell) && is_grade(cell)) {
                     return "manual";
                 } else if (is_solution(cell) && cell.cell_type === "code") {
@@ -564,6 +653,10 @@ define([
         set_points(cell, get_points(cell));
         update_total();
 
+        if (formelements.is_multiplechoice(cell)) {
+            text.attr('disabled', 'disabled');
+        }
+
         text.change(function () {
             set_points(cell, text.val());
             text.val(get_points(cell));
@@ -598,6 +691,7 @@ define([
         link.rel = 'stylesheet';
         link.href = require.toUrl('./create_assignment.css');
         document.getElementsByTagName('head')[0].appendChild(link);
+        formelements.load_css();
     };
 
     /**

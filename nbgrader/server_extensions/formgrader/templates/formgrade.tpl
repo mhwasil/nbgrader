@@ -105,7 +105,11 @@
     {{ nbgrader_heading(cell) }}
     <div class="panel-body">
       <div class="text_cell_render border-box-sizing rendered_html">
-        {{ cell.source  | markdown2html | strip_files_prefix }}
+        {%- if ('form_cell' in cell.metadata) and (cell.metadata.form_cell.type == 'multiplechoice' or cell.metadata.form_cell.type == 'singlechoice') -%}
+          {{ cell.source  | markdown2html | strip_files_prefix | to_choicecell }}
+        {%- else -%}
+          {{ cell.source  | markdown2html | strip_files_prefix }}
+        {%- endif -%}
       </div>
     </div>
     {{ nbgrader_footer(cell) }}

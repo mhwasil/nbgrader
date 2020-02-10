@@ -25,6 +25,20 @@ if sys.platform != 'win32':
 else:
     pwd = None
 
+def is_form_cell(cell):
+    """Returns True if the cell is a form cell."""
+    if 'nbgrader' not in cell.metadata:
+        return False
+    return 'form_cell' in cell.metadata
+
+
+def is_singlechoice(cell):
+    return is_form_cell(cell) and cell.metadata.form_cell.type == 'singlechoice'
+
+
+def is_multiplechoice(cell):
+    return is_form_cell(cell) and cell.metadata.form_cell.type == 'multiplechoice'
+
 
 def is_task(cell):
     """Returns True if the cell is a task cell."""
@@ -95,7 +109,27 @@ def determine_grade(cell, log=None):
         raise ValueError("cell is not a grade cell")
 
     max_points = float(cell.metadata['nbgrader']['points'])
-    if is_solution(cell):
+
+    if is_form_cell(cell):
+        if is_singlechoice(cell):
+            # Get the choices of the student
+            student_choices = cell.metadata.form_cell.choice
+            # Get the instructor choices
+            instructor_choices = cell.metadata.form_cell.source.choice
+            if student_choices[0] == instructor_choices[0]:
+                return max_points, max_points
+            else:
+                return 0, max_points
+        elif is_multiplechoice(cell):
+            # Get the choices of the student
+            student_choices = cell.metadata.form_cell.choice
+            # Get the weights of the answer
+            instructor_weights = cell.metadata.form_cell.source.weights
+            points = 0
+            for choice in student_choices:
+                points += max(0, int(instructor_weights[int(choice)]))
+            return points, max_points
+    elif is_solution(cell):
         # if it's a solution cell and the checksum hasn't changed, that means
         # they didn't provide a response, so we can automatically give this a
         # zero grade
