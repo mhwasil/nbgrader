@@ -53,9 +53,15 @@ function toggle_name(on) {
       <div class="col-md-8">
         <ul class="nav text-center">
           <ul class="breadcrumb">
-            <li><a href="{{ resources.base_url }}/formgrader/gradebook">Manual Grading</a></li>
-            <li><a href="{{ resources.base_url }}/formgrader/gradebook/{{ resources.assignment_id }}">{{ resources.assignment_id }}</a></li>
-            <li><a href="{{ resources.base_url }}/formgrader/gradebook/{{ resources.assignment_id }}/{{ resources.notebook_id }}">{{ resources.notebook_id }}</a></li>
+            {%- if resources.keyword != '' -%}
+              <li><a href="{{ resources.base_url }}/formgrader/gradebook/?view=task">Manual Grading (Task View)</a></li>
+              <li><a href="{{ resources.base_url }}/formgrader/gradebook/{{ resources.assignment_id }}/?view=task">{{ resources.assignment_id }}</a></li>
+              <li><a href="{{ resources.base_url }}/formgrader/gradebook/tasks/{{ resources.assignment_id }}/{{ resources.notebook_id }}">{{ resources.notebook_id }}</a></li>
+            {%- else -%}
+              <li><a href="{{ resources.base_url }}/formgrader/gradebook">Manual Grading</a></li>
+              <li><a href="{{ resources.base_url }}/formgrader/gradebook/{{ resources.assignment_id }}">{{ resources.assignment_id }}</a></li>
+              <li><a href="{{ resources.base_url }}/formgrader/gradebook/{{ resources.assignment_id }}/{{ resources.notebook_id }}">{{ resources.notebook_id }}</a></li>
+            {%- endif -%}
             <li class="active live-notebook">
               <a class="name-hidden" data-toggle="tooltip" data-placement="bottom" title="Open live notebook" target="_blank" href="{{ resources.base_url }}/notebooks/{{ resources.notebook_path }}">
                 Submission #{{ resources.index + 1 }}
