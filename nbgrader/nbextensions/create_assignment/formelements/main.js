@@ -98,8 +98,8 @@ define([
             var weight = get_weights(cell)[value];
             if (this.checked) {
                 if (weight < 0) {
-                    cell.metadata[form_metadata].weights[value] = -weight;
-                    points.attr('value', -weight);
+                    cell.metadata[form_metadata].weights[value] = -weight;                    
+                    points.val(-weight);                    
                 }
                 var cur_choices = get_choices(cell);
                 cur_choices.push(this.value);
@@ -107,7 +107,7 @@ define([
             } else {
                 if (weight > 0) {
                     cell.metadata[form_metadata].weights[value] = -weight;
-                    points.attr('value', -weight);
+                    points.val(-weight);
                 }
                 var idx = get_choices(cell).indexOf(this.value);
                 if (idx > -1) {
@@ -153,6 +153,7 @@ define([
 
     function make_point_input(cell, i) {
         var points = $('<input>')
+                .attr('name', i)
                 .attr('type', 'number')
                 .attr('value', get_weights(cell)[i])
                 .addClass('hbrs_points')
