@@ -4,9 +4,10 @@ define([
     'base/js/namespace',
     'base/js/dialog',
     'notebook/js/celltoolbar',
-    'base/js/events'
+    'base/js/events',
+    './formelements/main'
 
-], function (require, $, Jupyter, dialog, celltoolbar, events) {
+], function (require, $, Jupyter, dialog, celltoolbar, events, formelements) {
     "use strict";
 
     var nbgrader_preset_name = "Create Assignment";
@@ -33,6 +34,9 @@ define([
         for (var i=0; i < CellToolbar._instances.length; i++) {
             events.trigger('global_hide.CellToolbar', CellToolbar._instances[i].cell);
         }
+        formelements.unpatch_MarkdownCell_render();
+        formelements.unpatch_MarkdownCell_unrender();
+        formelements.render_form_cells();
     };
 
     // show the total points when the preset is activated
@@ -42,6 +46,7 @@ define([
 
         var elem = $("#nbgrader-total-points-group");
         if (preset.name === nbgrader_preset_name) {
+
             if (elem.length == 0) {
                 elem = $("<div />").attr("id", "nbgrader-total-points-group");
                 elem.addClass("btn-group");
@@ -52,9 +57,15 @@ define([
                             .attr("id", "nbgrader-total-points"));
                 $("#maintoolbar-container").append(elem);
             }
+            formelements.patch_MarkdownCell_render();
+            formelements.patch_MarkdownCell_unrender();
+            formelements.render_form_cells();
             elem.show();
             update_total();
         } else {
+            formelements.unpatch_MarkdownCell_render();
+            formelements.unpatch_MarkdownCell_unrender();
+            formelements.render_form_cells();
             elem.hide();
         }
     });
@@ -487,7 +498,7 @@ define([
             var setter = function (cell, val) {
                 if (val === "") {
                     remove_metadata(cell);
-                    remove_form_metadata(cell);
+                    formelements.remove_form_metadata(cell);
                 } else if (val === "multiplechoice") {
                     //remove_form_metadata(cell);
                     set_schema_version(cell);
@@ -495,9 +506,9 @@ define([
                     set_grade(cell, true);
                     set_locked(cell, false);
                     set_task(cell, false);                    
-                    set_multiplechoice(cell, true);
+                    formelements.to_multiplechoice(cell);
                     if (cell.rendered) {
-                        cell.unrender();
+                        cell.unrender_force();
                         cell.render();
                     }
                 } else if (val === "singlechoice") {
@@ -507,20 +518,20 @@ define([
                     set_grade(cell, true);
                     set_locked(cell, false);
                     set_task(cell, false);
-                    set_singlechoice(cell, true);
+                    formelements.to_singlechoice(cell, true);
                     if (cell.rendered) {
-                        cell.unrender();
+                        cell.unrender_force();
                         cell.render();
                     }
                 } else if (val === "manual") {
-                    remove_form_metadata(cell);
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, true);
                     set_grade(cell, true);
                     set_locked(cell, false);
                     set_task(cell, false);
                 } else if (val === "task") {
-                    remove_form_metadata(cell);
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, false);
@@ -530,21 +541,21 @@ define([
                       cell.set_text('Describe the task here!')
                     }
                 } else if (val === "solution") {
-                    remove_form_metadata(cell);
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, true);
                     set_grade(cell, false);
                     set_locked(cell, false);
                     set_task(cell, false);
                 } else if (val === "tests") {
-                    remove_form_metadata(cell);
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, true);
                     set_locked(cell, true);
                     set_task(cell, false);
                 } else if (val === "readonly") {
-                    remove_form_metadata(cell);
+                    formelements.remove_form_metadata(cell);
                     set_schema_version(cell);
                     set_solution(cell, false);
                     set_grade(cell, false);
@@ -558,9 +569,9 @@ define([
             var getter = function (cell) {
                 if (is_task(cell)) {
                     return "task";
-                } else if (is_multiplechoice(cell)) {
+                } else if (formelements.is_multiplechoice(cell)) {
                     return "multiplechoice";
-                } else if (is_singlechoice(cell)) {
+                } else if (formelements.is_singlechoice(cell)) {
                     return "singlechoice";
                 } else if (is_solution(cell) && is_grade(cell)) {
                     return "manual";
@@ -642,7 +653,7 @@ define([
         set_points(cell, get_points(cell));
         update_total();
 
-        if (is_multiplechoice(cell)) {
+        if (formelements.is_multiplechoice(cell)) {
             text.attr('disabled', 'disabled');
         }
 
@@ -680,6 +691,7 @@ define([
         link.rel = 'stylesheet';
         link.href = require.toUrl('./create_assignment.css');
         document.getElementsByTagName('head')[0].appendChild(link);
+        formelements.load_css();
     };
 
     /**
