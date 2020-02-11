@@ -469,6 +469,7 @@ define([
             });
 
         } else if (this.data.status == 'submitted') {
+            button.hide();
             button.text("Fetch Feedback");
             button.click(function (e) {
                 var settings = {
