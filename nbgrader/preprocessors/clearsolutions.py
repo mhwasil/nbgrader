@@ -137,7 +137,7 @@ class ClearSolutions(NbGraderPreprocessor):
 
     def preprocess_cell(self, cell, resources, cell_index):
         # Ignore form cells
-        if utils.is_form_cell(cell):
+        if utils.is_extra_cell(cell):
             return cell, resources
             
         # replace solution regions with the relevant stubs
