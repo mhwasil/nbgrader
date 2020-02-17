@@ -69,6 +69,11 @@ define([
             var list = lists[0];
             var form = $('<form>').addClass('hbrs_radio');
             var items = $(list).find('li');
+            if (choices.length > 0 && choices[0] >= items.length) {
+                var metadata = this.get_metadata();
+                metadata[this.choice_field] = [];
+                choices = this.get_choices();
+            }
             for (var i=0; i<items.length; i++) {
                 var input = this.create_radio_button('my_radio', i, choices.indexOf(i.toString()) >= 0, function () {
                     that.set_choice(this.value);
@@ -200,7 +205,6 @@ define([
         this.cell.render_force();
         var html = $(this.cell.element).find('.rendered_html');
         var lists = html.find('ul');
-        var choices = this.get_choices();
         var that = this;
 
         if (lists.length > 0) {
@@ -208,13 +212,16 @@ define([
             var form = $('<form>').addClass('hbrs_checkbox');
             var items = $(list).find('li');
             var weights = this.get_weights();
-            if (weights.length < items.length) {
+            if (weights.length != items.length) {
                 weights = [];
                 for (var i=0; i < items.length; i++) {
                     weights.push(-1);
                 }
                 this.set_weights(weights);
+                var metadata = this.get_metadata();
+                metadata[this.choice_field] = [];
             }
+            var choices = this.get_choices();
             for (var i=0; i<items.length; i++) {
                 var points;
                 if (this.edit_mode) {
