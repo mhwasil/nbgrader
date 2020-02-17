@@ -59,8 +59,8 @@ class OverwriteCells(NbGraderPreprocessor):
             del cell.metadata.nbgrader['grade_id']
             return cell, resources
 
-        if utils.is_form_cell(cell):
-            cell.metadata.form_cell.source = ast.literal_eval(source_cell.metadata_extra)['form_cell']
+        if utils.is_extra_cell(cell):
+            cell.metadata.form_cell.source = ast.literal_eval(source_cell.metadata_extra)['extended_cell']
 
         # check that the cell type hasn't changed
         if cell.cell_type != source_cell.cell_type:

@@ -25,19 +25,57 @@ if sys.platform != 'win32':
 else:
     pwd = None
 
-def is_form_cell(cell):
+def is_extra_cell(cell):
     """Returns True if the cell is a form cell."""
     if 'nbgrader' not in cell.metadata:
         return False
-    return 'form_cell' in cell.metadata
+    return 'extended_cell' in cell.metadata
 
 
 def is_singlechoice(cell):
-    return is_form_cell(cell) and cell.metadata.form_cell.type == 'singlechoice'
+    return is_extra_cell(cell) and cell.metadata.extended_cell.type == 'singlechoice'
 
 
 def is_multiplechoice(cell):
-    return is_form_cell(cell) and cell.metadata.form_cell.type == 'multiplechoice'
+    return is_extra_cell(cell) and cell.metadata.extended_cell.type == 'multiplechoice'
+
+
+def get_choices(cell):
+    if (is_singlechoice(cell) or is_multiplechoice(cell)):
+        return cell.metadata.extended_cell.choice
+    return []
+
+
+def get_instructor_choices(cell):
+    if (is_singlechoice(cell) or is_multiplechoice(cell)):
+        if ('source' in cell.metadata.extended_cell and \
+            'choice' in cell.metadata.extended_cell.source):
+            return cell.metadata.extended_cell.source.choice
+    return []
+
+
+def get_instructor_weights(cell):
+    if (is_singlechoice(cell) or is_multiplechoice(cell)):
+        if ('source' in cell.metadata.extended_cell and \
+            'weights' in cell.metadata.extended_cell.source):
+            return cell.metadata.extended_cell.source.weights
+    return []
+
+
+def clear_choices(cell):
+    if is_extra_cell(cell):
+        cell.metadata.extended_cell.choice = []
+
+
+def clear_weights(cell):
+    if is_extra_cell(cell):
+        cell.metadata.extended_cell.weights = []
+
+
+def has_solution(cell):
+    if (is_singlechoice(cell) or is_multiplechoice(cell)):
+        return 'source' in cell.metadata.extended_cell
+    return False
 
 
 def is_task(cell):
@@ -110,21 +148,22 @@ def determine_grade(cell, log=None):
 
     max_points = float(cell.metadata['nbgrader']['points'])
 
-    if is_form_cell(cell):
+    if is_extra_cell(cell):
         if is_singlechoice(cell):
             # Get the choices of the student
-            student_choices = cell.metadata.form_cell.choice
+            student_choices = get_choices(cell)
             # Get the instructor choices
-            instructor_choices = cell.metadata.form_cell.source.choice
-            if student_choices[0] == instructor_choices[0]:
+            instructor_choices = get_instructor_choices(cell)
+
+            if (len(student_choices) > 0) and (student_choices[0] == instructor_choices[0]):
                 return max_points, max_points
             else:
                 return 0, max_points
         elif is_multiplechoice(cell):
             # Get the choices of the student
-            student_choices = cell.metadata.form_cell.choice
+            student_choices = get_choices(cell)
             # Get the weights of the answer
-            instructor_weights = cell.metadata.form_cell.source.weights
+            instructor_weights = get_instructor_weights(cell)
             points = 0
             for choice in student_choices:
                 points += int(instructor_weights[int(choice)])
