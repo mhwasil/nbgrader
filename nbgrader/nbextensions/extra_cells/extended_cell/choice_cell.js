@@ -179,7 +179,7 @@ define([
             }
             var points_input = $(this.cell.element).find('.nbgrader-points-input');
             if (points_input.length > 0) {
-                points_input.val(point_total);
+                points_input.val(point_total).change();
             }
             this.cell.metadata.nbgrader.points = point_total;
         }
