@@ -17,6 +17,9 @@ import json
 import numpy as np
 import distutils
 
+import requests
+import shutil
+
 class ExchangeSubmit(Exchange):
 
     strict = Bool(
@@ -253,27 +256,63 @@ class ExchangeSubmit(Exchange):
 
         # copy to the real location
         self.check_filename_diff()
-        self.do_copy(self.src_path, dest_path)
-        with open(os.path.join(dest_path, "timestamp.txt"), "w") as fh:
-            fh.write(self.timestamp)
-        self.set_perms(
-            dest_path,
-            fileperms=(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH),
-            dirperms=(S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP))
+        
+        # http submit
+        if self.enable_http_submit:
+            self.http_submit_path = self.http_submit_path
+            address = "{}:{}".format(self.http_url, self.http_port)
+            local_file = ""
+            zip_path = os.path.basename(dest_path)
+            user_root = os.path.split(self.src_path)[0]
+            user_tmp = os.path.join(user_root, ".tmp")
+            if not os.path.isdir(user_tmp):
+                os.makedirs(user_tmp)
 
-        # Make this 0777=ugo=rwx so the instructor can delete later. Hidden from other users by the timestamp.
-        #os.chmod(
-        #    dest_path,
-        #    S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IWOTH|S_IXOTH
-        #)
+            full_zip_path = os.path.expanduser(os.path.join(user_tmp, os.path.basename(dest_path)))
 
-        # also copy to the cache
-        if not os.path.isdir(self.cache_path):
-            os.makedirs(self.cache_path)
-        self.do_copy(self.src_path, cache_path)
-        with open(os.path.join(cache_path, "timestamp.txt"), "w") as fh:
-            fh.write(self.timestamp)
+            src_path = os.path.expanduser(self.src_path)
 
-        self.log.info("Submitted as: {} {} {}".format(
-            self.coursedir.course_id, self.coursedir.assignment_id, str(self.timestamp)
-        ))
+            # zip the assignment dir
+            shutil.make_archive(full_zip_path, 'zip', src_path)
+
+            try:
+                with open(full_zip_path+".zip", 'rb') as f:
+                    user_token = os.environ['JUPYTERHUB_API_TOKEN']
+                    hub_user_api_url = os.environ['JUPYTERHUB_ACTIVITY_URL'].rsplit('/', 1)[0]
+                    file_dict = ({'file': f, 'hub_user_api_url': hub_user_api_url, 'hub_token': user_token})
+                    response = requests.post(address, files=file_dict, verify=False)
+            except requests.ReadTimeout:
+                self.log.info("timeout after {} seconds when trying to log in user '{}' at URL '{}'")
+                
+            if response.ok:
+                self.log.info("File uploaded!")
+            elif response.status_code != 200:
+                self.log.info("failed to send POST request for user '{}' to URL '{}'")  
+            elif response.text.find('Invalid username or password') > -1:
+                self.log.info("invalid")
+        else:
+            self.do_copy(self.src_path, dest_path)
+            with open(os.path.join(dest_path, "timestamp.txt"), "w") as fh:
+                fh.write(self.timestamp)
+            self.set_perms(
+                dest_path,
+                fileperms=(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH),
+                dirperms=(S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP))
+
+            #Make this 0777=ugo=rwx so the instructor can delete later. Hidden from other users by the timestamp.
+            os.chmod(
+                dest_path,
+                S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IWOTH|S_IXOTH
+            )
+
+            # also copy to the cache
+            if not os.path.isdir(self.cache_path):
+                os.makedirs(self.cache_path)
+            
+            self.do_copy(self.src_path, cache_path)
+            with open(os.path.join(cache_path, "timestamp.txt"), "w") as fh:
+                fh.write(self.timestamp)
+
+            self.log.info("Submitted as: {} {} {}".format(
+                self.coursedir.course_id, self.coursedir.assignment_id, str(self.timestamp)
+            ))
