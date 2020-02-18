@@ -53,6 +53,26 @@ class Exchange(LoggingConfigurable):
         "",
         help="Local cache directory for nbgrader submit and nbgrader list. Defaults to $JUPYTER_DATA_DIR/nbgrader_cache"
     ).tag(config=True)
+    
+    enable_http_submit = Unicode(
+        "",
+        help="The url for http submit"
+    ).tag(config=True)
+    
+    http_url = Unicode(
+        "",
+        help="The url for http submit"
+    ).tag(config=True)
+    
+    http_port = Unicode(
+        "5000",
+        help="The port for http submit"
+    ).tag(config=True)
+    
+    http_submit_path = Unicode(
+        "/srv/nbgrader/http/inbound",
+        help="The submit directory"
+    ).tag(config=True)
 
     @default("cache")
     def _cache_default(self):
