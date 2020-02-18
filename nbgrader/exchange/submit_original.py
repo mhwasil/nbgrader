@@ -253,51 +253,13 @@ class ExchangeSubmit(Exchange):
 
         # copy to the real location
         self.check_filename_diff()
-        
-        #ToDo: http submit
-        http_dest_path = "/srv/nbgrader/test"     
-        import requests
-        address = "https://10.20.168.205:5000/"
-        local_file = ""
-        import shutil
-        zip_path = os.path.basename(dest_path)
-        user_root = os.path.split(self.src_path)[0]
-        user_tmp = os.path.join(user_root, ".tmp")
-        if not os.path.isdir(user_tmp):
-            os.makedirs(user_tmp)
-
-        full_zip_path = os.path.expanduser(os.path.join(user_tmp, os.path.basename(dest_path)))
-
-        src_path = os.path.expanduser(self.src_path)
-
-
-        shutil.make_archive(full_zip_path, 'zip', src_path)
-
-        if self.is_authenticated_user:
-            try:
-                with open(full_zip_path+".zip", 'rb') as f:
-                    user_token = os.environ['JUPYTERHUB_API_TOKEN']
-                    hub_user_api_url = os.environ['JUPYTERHUB_ACTIVITY_URL'].rsplit('/', 1)[0]
-                    file_dict = ({'file': f, 'hub_user_api_url': hub_user_api_url, 'hub_token': user_token})
-                    response = requests.post(address, files=file_dict, verify=False)
-            except requests.ReadTimeout:
-                self.log.info("timeout after {} seconds when trying to log in user '{}' at URL '{}'")
-                
-            if response.ok:
-                self.log.info("File uploaded!")
-            elif response.status_code != 200:
-                self.log.info("failed to send POST request for user '{}' to URL '{}'")  
-            elif response.text.find('Invalid username or password') > -1:
-                self.log.info("invalid")
-        else:
-            self.log.info("Autehtication failed")
-        #self.do_copy(self.src_path, dest_path)
-        #with open(os.path.join(dest_path, "timestamp.txt"), "w") as fh:
-        #    fh.write(self.timestamp)
-        #self.set_perms(
-        #    dest_path,
-        #    fileperms=(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH),
-        #    dirperms=(S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP))
+        self.do_copy(self.src_path, dest_path)
+        with open(os.path.join(dest_path, "timestamp.txt"), "w") as fh:
+            fh.write(self.timestamp)
+        self.set_perms(
+            dest_path,
+            fileperms=(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH),
+            dirperms=(S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP))
 
         # Make this 0777=ugo=rwx so the instructor can delete later. Hidden from other users by the timestamp.
         #os.chmod(
@@ -306,40 +268,12 @@ class ExchangeSubmit(Exchange):
         #)
 
         # also copy to the cache
-        #if not os.path.isdir(self.cache_path):
-        #    os.makedirs(self.cache_path)
-        #self.do_copy(self.src_path, cache_path)
-        #with open(os.path.join(cache_path, "timestamp.txt"), "w") as fh:
-        #    fh.write(self.timestamp)
+        if not os.path.isdir(self.cache_path):
+            os.makedirs(self.cache_path)
+        self.do_copy(self.src_path, cache_path)
+        with open(os.path.join(cache_path, "timestamp.txt"), "w") as fh:
+            fh.write(self.timestamp)
 
-        #self.log.info("Submitted as: {} {} {}".format(
-        #    self.coursedir.course_id, self.coursedir.assignment_id, str(self.timestamp)
-        #))
-
-    def is_authenticated_user(self):
-        import os
-        import requests
-
-        api_url = os.environ['JUPYTERHUB_API_URL']
-        hub_url = api_url.rsplit('/', 1)[0]
-        url = hub_url.rsplit('/', 1)[0]
-        login_url = hub_url + '/login'
-        token_url = api_url + '/authorizations/token'
-
-        username = os.environ['JUPYTERHUB_USER']
-        user_hub_service_prefix = os.environ['JUPYTERHUB_SERVICE_PREFIX']
-        user_token = os.environ['JUPYTERHUB_API_TOKEN']
-        auth_headers = {'Authorization': 'token %s' % user_token}
-        #hub_user_url = url + user_hub_service_prefix
-        #hub_user_url_api_contents = hub_user_url + '/api/contents/'
-        hub_user_api_url = os.environ['JUPYTERHUB_ACTIVITY_URL'].rsplit('/', 1)[0]
-        print(hub_user_api_url)
-        r = requests.get(hub_user_api_url, headers=auth_headers)
-        #r.raise_for_status()
-        print ("Response code: ",r.status_code)
-        if r.status_code == 200:
-            return True
-        else:
-            print ("Authentication error")
-            self.log.info("Authentication error")
-            return False
+        self.log.info("Submitted as: {} {} {}".format(
+            self.coursedir.course_id, self.coursedir.assignment_id, str(self.timestamp)
+        ))
