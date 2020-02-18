@@ -54,9 +54,9 @@ class Exchange(LoggingConfigurable):
         help="Local cache directory for nbgrader submit and nbgrader list. Defaults to $JUPYTER_DATA_DIR/nbgrader_cache"
     ).tag(config=True)
     
-    enable_http_submit = Unicode(
-        "",
-        help="The url for http submit"
+    enable_http_submit = Bool(
+        False,
+        help="Enable submission via http"
     ).tag(config=True)
     
     http_url = Unicode(
