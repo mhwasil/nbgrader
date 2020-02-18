@@ -248,7 +248,10 @@ class NbGrader(JupyterApp):
             ("timezone", "timezone"),
             ("timestamp_format", "timestamp_format"),
             ("exchange_directory", "root"),
-            ("cache_directory", "cache")
+            ("cache_directory", "cache"),
+            ("enable_http_submit", "enable_http_submit"),
+            ("http_url", "http_url"),
+            ("http_port", "http_port"),
         ]
 
         for old_opt, new_opt in exchange_options:
