@@ -1,5 +1,6 @@
 define([
     'jquery',
+    'require',
     'base/js/namespace',
     'base/js/events',
     'notebook/js/textcell',
@@ -7,6 +8,7 @@ define([
     './extended_cell/choice_cell'
 ], function (
     $,
+    require,
     Jupyter,
     events,
     textcell,
@@ -26,7 +28,7 @@ define([
             return cell.metadata.extended_cell.type;
         }
         return cell.cell_type;
-    }
+    };
 
     function patch_MarkdownCell_render () {
         MarkdownCell.prototype.render_force = old_render;
@@ -44,7 +46,7 @@ define([
                 old_render.apply(this, arguments);
             }
         }
-    }
+    };
 
     function patch_MarkdownCell_unrender () {
         MarkdownCell.prototype.unrender_force = old_unrender;
@@ -58,7 +60,7 @@ define([
                 old_unrender.apply(this, arguments);
             }
         }
-    }
+    };
 
     function render_extended_cells () {
         var cells = Jupyter.notebook.get_cells();
@@ -69,9 +71,18 @@ define([
                 cell.render();
             }
         }
-    }
+    };
+    
+    function load_css () {
+        var link = document.createElement('link');
+        link.type = 'text/css';
+        link.rel = 'stylesheet';
+        link.href = require.toUrl('./extra_cells.css');
+        document.getElementsByTagName('head')[0].appendChild(link);
+    };
 
     function initialize () {
+        load_css();
         if (Jupyter.notebook.metadata.hasOwnProperty('celltoolbar')) {
             if (Jupyter.notebook.metadata.celltoolbar == 'Create Assignment') {
                 edit_mode = true;
