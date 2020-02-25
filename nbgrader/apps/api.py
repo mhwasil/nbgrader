@@ -677,7 +677,10 @@ class NbGraderAPI(LoggingConfigurable):
                     needs_grading = 1
                 else:
                     needs_grading = 0
-
+                    
+                cell_avg_score = 0
+                if i > 0:
+                    cell_avg_score = avg_score/i
 
                 solution_cell = {
                     "id": cell_id,
@@ -685,7 +688,7 @@ class NbGraderAPI(LoggingConfigurable):
                     "grade_id": grade_cell[0],
                     "max_score": grade_cell[1],
                     "autograded": autograded,
-                    "avg_score": avg_score/i,
+                    "avg_score": cell_avg_score,
                     "needs_manual_grade": needs_grading
                 }
 
