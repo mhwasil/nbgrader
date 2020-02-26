@@ -40,7 +40,7 @@ class FormExporter(HTMLExporter):
             box['type'] = my_type
             box['value'] = i
             box['disabled'] = 'disabled'
-            if str(i) in utils.get_choices(cell):
+            if i in utils.get_choices(cell):
                 box['checked'] = 'checked'                
             div.append(box)
             children = [c for c in list_elems[i].children]
@@ -49,19 +49,12 @@ class FormExporter(HTMLExporter):
 
             if utils.has_solution(cell):
                 check = soup.new_tag('span')
-                if str(i) in utils.get_instructor_choices(cell):
+                if i in utils.get_instructor_choices(cell):
                     check.string = 'correct'
                     check['style'] = 'color:green'
                 else:
                     check.string = 'false'
                     check['style'] = 'color:red'
-                
-                if utils.is_multiplechoice(cell):
-                    weight = utils.get_instructor_weights(cell)[i]
-                    if weight > 0:
-                        check.append('[+{} point(s)]'.format(weight))
-                    else:
-                        check.append('[{} point(s)]'.format(weight))
                 div.append(check)
             form.append(div)
         soup.ul.replaceWith(form)

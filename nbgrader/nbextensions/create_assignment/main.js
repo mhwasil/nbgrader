@@ -411,10 +411,6 @@ define([
             text.val(model.get_points(cell));
             update_total();
         });
-        
-        if (extramodel.is_multiplechoice(cell)) {
-            text.attr('disabled', 'disabled');
-        }
 
         local_div.addClass('nbgrader-points');
         $(div).append(local_div.append($('<span/>').append(lbl)));

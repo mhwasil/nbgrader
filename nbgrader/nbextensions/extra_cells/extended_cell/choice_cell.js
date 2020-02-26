@@ -94,21 +94,22 @@ define([
     var MultiplechoiceCell = function (cell) {
         ChoiceCell.call(this, cell, 'multiplechoice');
         this.weight_field = 'weights';
+        this.choice_count_field = 'num_of_choices';
     };
 
     MultiplechoiceCell.prototype = Object.create(ChoiceCell.prototype);
 
-    MultiplechoiceCell.prototype.get_weights = function () {
+    MultiplechoiceCell.prototype.get_number_of_choices = function () {
         var metadata = this.get_metadata();
-        if (metadata.hasOwnProperty(this.weight_field)) {
-            return metadata[this.weight_field];
+        if (metadata.hasOwnProperty(this.choice_count_field)) {
+            return metadata[this.choice_count_field];
         }
         return [];
     }
 
-    MultiplechoiceCell.prototype.set_weights = function (weights) {
+    MultiplechoiceCell.prototype.set_number_of_choices = function (value) {
         var metadata = this.get_metadata();
-        metadata[this.weight_field] = weights;
+        metadata[this.choice_count_field] = value;
     }
 
     MultiplechoiceCell.prototype.add_choice = function (value) {
@@ -139,66 +140,16 @@ define([
             .attr('name', name)
             .attr('value', value)
             .change(function () {
-                var weights = that.get_weights();
                 if (this.checked) {
                     that.add_choice(this.value);
-                    if (weights[value] < 0) {
-                        weights[value] = -weights[value];
-                        that.set_weights(weights);
-                        if (points !== undefined) {
-                            points.val(weights[value]);
-                        }
-                    }
                 } else {
                     that.remove_choice(this.value);
-                    if (weights[value] > 0) {
-                        weights[value] = -weights[value];
-                        that.set_weights(weights);
-                        if (points !== undefined) {
-                            points.val(weights[value]);
-                        }
-                    }
-                }
-                if (points !== undefined) {
-                    that.update_nbgrader_points();
                 }
             });
         if (selected) {
             input.attr('checked', 'checked');
         }
         return input;
-    };
-
-    MultiplechoiceCell.prototype.update_nbgrader_points = function () {
-        console.log('In update nbgrader total points')
-        if (this.cell.metadata.hasOwnProperty('nbgrader') && this.cell.metadata.nbgrader.hasOwnProperty('points')) {
-            var point_total = 0;
-            var weights = this.get_weights();
-            for (var i=0;i < weights.length;i++) {
-                point_total += Math.max(0, weights[i]);
-            }
-            var points_input = $(this.cell.element).find('.nbgrader-points-input');
-            if (points_input.length > 0) {
-                points_input.val(point_total).change();
-            }
-            this.cell.metadata.nbgrader.points = point_total;
-        }
-    };
-
-    MultiplechoiceCell.prototype.create_point_input = function (value) {
-        var that = this;
-        var points = $('<input>')
-            .attr('name', value)
-            .attr('type', 'number')
-            .attr('value', that.get_weights()[value])
-            .addClass('hbrs_points')
-            .change(function () {
-                var weights = that.get_weights();
-                weights[value] = parseInt(this.value);
-                that.set_weights(weights);
-                that.update_nbgrader_points();
-            });
-        return points;
     };
 
     MultiplechoiceCell.prototype.render = function () {
@@ -211,37 +162,21 @@ define([
             var list = lists[0];
             var form = $('<form>').addClass('hbrs_checkbox');
             var items = $(list).find('li');
-            var weights = this.get_weights();
-            if (weights.length != items.length) {
-                weights = [];
-                for (var i=0; i < items.length; i++) {
-                    weights.push(-1);
-                }
-                this.set_weights(weights);
+            var num_of_choices = this.get_number_of_choices();
+            if (num_of_choices != items.length) {
+                this.set_number_of_choices(items.length);
                 var metadata = this.get_metadata();
                 metadata[this.choice_field] = [];
             }
             var choices = this.get_choices();
             for (var i=0; i<items.length; i++) {
-                var points;
-                if (this.edit_mode) {
-                    var points = this.create_point_input(i);
-                }
-                var input = this.create_checkbox('my_checkbox', i, choices.indexOf(i.toString()) >= 0, points);
-                Jupyter.keyboard_manager.register_events(points);
+                var input = this.create_checkbox('my_checkbox', i, choices.indexOf(i.toString()) >= 0);
                 Jupyter.keyboard_manager.register_events(input);
 
                 var input_div = $('<div>')
                     .append(input)
                     .append('&nbsp;&nbsp;')
                     .append(items[i].childNodes);
-
-                if (this.edit_mode) {
-                    input_div
-                        .append('&nbsp;&nbsp;')
-                        .append(points)
-                        .append('Points');
-                }
 
                 form.append(input_div);
             };
