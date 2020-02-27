@@ -42,34 +42,26 @@ def is_multiplechoice(cell):
 
 def get_choices(cell):
     if (is_singlechoice(cell) or is_multiplechoice(cell)):
-        return cell.metadata.extended_cell.choice
+        return [int(i) for i in cell.metadata.extended_cell.choice]
     return []
+
+
+def get_num_of_choices(cell):
+    if is_multiplechoice(cell):
+        return cell.metadata.extended_cell.num_of_choices
 
 
 def get_instructor_choices(cell):
     if (is_singlechoice(cell) or is_multiplechoice(cell)):
         if ('source' in cell.metadata.extended_cell and \
             'choice' in cell.metadata.extended_cell.source):
-            return cell.metadata.extended_cell.source.choice
-    return []
-
-
-def get_instructor_weights(cell):
-    if (is_singlechoice(cell) or is_multiplechoice(cell)):
-        if ('source' in cell.metadata.extended_cell and \
-            'weights' in cell.metadata.extended_cell.source):
-            return cell.metadata.extended_cell.source.weights
+            return [int(i) for i in cell.metadata.extended_cell.source.choice]
     return []
 
 
 def clear_choices(cell):
     if is_extra_cell(cell):
         cell.metadata.extended_cell.choice = []
-
-
-def clear_weights(cell):
-    if is_extra_cell(cell):
-        cell.metadata.extended_cell.weights = []
 
 
 def has_solution(cell):
@@ -159,15 +151,23 @@ def determine_grade(cell, log=None):
                 return max_points, max_points
             else:
                 return 0, max_points
+
         elif is_multiplechoice(cell):
             # Get the choices of the student
             student_choices = get_choices(cell)
             # Get the weights of the answer
-            instructor_weights = get_instructor_weights(cell)
+            instructor_choices = get_instructor_choices(cell)
+            option_points = max_points / get_num_of_choices(cell)
+
             points = 0
-            for choice in student_choices:
-                points += int(instructor_weights[int(choice)])
+            for i in range(get_num_of_choices(cell)):
+                if ((i in student_choices) and (i in instructor_choices)) or \
+                   ((i not in student_choices) and (i not in instructor_choices)):
+                    points += option_points
+                else:
+                    points -=option_points
             return max(0, points), max_points
+
     elif is_solution(cell):
         # if it's a solution cell and the checksum hasn't changed, that means
         # they didn't provide a response, so we can automatically give this a
