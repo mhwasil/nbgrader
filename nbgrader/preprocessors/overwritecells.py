@@ -3,6 +3,7 @@ from nbformat.v4.nbbase import validate
 from .. import utils
 from ..api import Gradebook, MissingEntry
 from . import NbGraderPreprocessor
+import ast
 
 
 class OverwriteCells(NbGraderPreprocessor):
@@ -43,6 +44,7 @@ class OverwriteCells(NbGraderPreprocessor):
             "Attribute '%s' for cell %s has changed! (should be: %s, got: %s)", attr, name, old, new)
 
     def preprocess_cell(self, cell, resources, cell_index):
+        self.log.info('OverwriteCells, resources= {}'.format(resources['nbgrader']))
         grade_id = cell.metadata.get('nbgrader', {}).get('grade_id', None)
         if grade_id is None:
             return cell, resources
@@ -56,6 +58,9 @@ class OverwriteCells(NbGraderPreprocessor):
             self.log.warning("Cell '{}' does not exist in the database".format(grade_id))
             del cell.metadata.nbgrader['grade_id']
             return cell, resources
+
+        if utils.is_extra_cell(cell):
+            cell.metadata.extended_cell.source = ast.literal_eval(source_cell.metadata_extra)['extended_cell']
 
         # check that the cell type hasn't changed
         if cell.cell_type != source_cell.cell_type:

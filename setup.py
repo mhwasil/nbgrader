@@ -103,7 +103,9 @@ setup_args = dict(
         "requests",
         "jsonschema",
         "alembic",
-        "fuzzywuzzy"
+        "fuzzywuzzy",
+        "bs4",
+        "pandas"
     ]
 )
 

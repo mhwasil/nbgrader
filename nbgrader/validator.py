@@ -117,7 +117,7 @@ class Validator(LoggingConfigurable):
                     errors.append("\n".join(output.traceback))
 
             if len(errors) == 0:
-                if utils.is_grade(cell):
+                if utils.is_grade(cell) and (not utils.is_extra_cell(cell)):
                     score, max_score = utils.determine_grade(cell, self.log)
                     if (score < max_score):
                         errors.append("Partial credit; passed some but not all of the tests")
@@ -244,7 +244,7 @@ class Validator(LoggingConfigurable):
                 continue
 
             # if it's a grade cell, the check the grade
-            if utils.is_grade(cell):
+            if utils.is_grade(cell) and (not utils.is_extra_cell(cell)):
                 score, max_score = utils.determine_grade(cell, self.log)
 
                 # it's a markdown cell, so we can't do anything
@@ -267,7 +267,7 @@ class Validator(LoggingConfigurable):
                 continue
 
             # if it's a grade cell, the check the grade
-            if utils.is_grade(cell):
+            if utils.is_grade(cell) and (not utils.is_extra_cell(cell)):
                 score, max_score = utils.determine_grade(cell, self.log)
 
                 # it's a markdown cell, so we can't do anything

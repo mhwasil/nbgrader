@@ -179,7 +179,7 @@ class ExchangeSubmit(Exchange):
 
     def generate_html(self, hashcoded_notebook_file, html_file):
         self.log.info("Converting to html using nbconvert")
-        os.system('jupyter nbconvert --to html {} {}'.format(hashcoded_notebook_file, html_file))
+        os.system('jupyter nbconvert --to nbgrader.exporters.FormExporter --template=form {} {}'.format(hashcoded_notebook_file, html_file))
 
     def copy_and_overwrite_dir(self, src, dest):
         if not os.path.exists(src):

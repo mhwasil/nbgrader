@@ -6,6 +6,33 @@ from tornado import web
 
 from .base import BaseHandler, check_xsrf, check_notebook_dir
 from ...api import MissingEntry
+from .gradeexporter import GradeTaskExporter, GradeNotebookExporter
+
+class ExportGradesHandler(BaseHandler):
+    @web.authenticated
+    @check_xsrf
+    def get(self):
+        html = self.render(
+            "export_grades.tpl",
+            base_url=self.base_url
+            )
+        self.write(html)
+
+
+class ExportTaskGradesHandler(BaseHandler):
+    @web.authenticated
+    @check_xsrf
+    def get(self):
+        exporter = GradeTaskExporter(self.gradebook, self.coursedir.root)
+        self.write(exporter.make_table().to_csv(index=False))
+
+
+class ExportNotebookGradesHandler(BaseHandler):
+    @web.authenticated
+    @check_xsrf
+    def get(self):
+        exporter = GradeNotebookExporter(self.gradebook, self.coursedir.root)
+        self.write(exporter.make_table().to_csv(index=False))
 
 
 class ManageAssignmentsHandler(BaseHandler):
@@ -322,6 +349,10 @@ default_handlers = [
     (r"/formgrader/submissions/([^/]+)/?", SubmissionHandler),
     (r"/formgrader/submissions/(?P<submission_id>[^/]+)/%s/?" % _navigation_regex, SubmissionNavigationHandler),
     (r"/formgrader/submissions/(.*)", SubmissionFilesHandler),
+
+    (r"/formgrader/export_grades/?", ExportGradesHandler),
+    (r"/formgrader/export_grades/tasks/?", ExportTaskGradesHandler),
+    (r"/formgrader/export_grades/notebooks/?", ExportNotebookGradesHandler),
 
     (r"/formgrader/fonts/(.*)", web.StaticFileHandler, {'path': fonts_path}),
 ]

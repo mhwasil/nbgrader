@@ -39,9 +39,9 @@ class ExchangeList(Exchange):
 
     def parse_assignment(self, assignment):
         if self.inbound:
-            regexp = r".*/(?P<course_id>.*)/inbound/(?P<student_id>[^+]*)\+(?P<assignment_id>[^+]*)\+(?P<timestamp>[^+]*)(?P<random_string>\+.*)?"
+            regexp = r".*/(?P<course_id>.*)/inbound/(?P<student_id>[^+]*)\+(?P<assignment_id>[^+]*)\+(?P<timestamp>[^+]*)\+(?P<random_string>.*)"
         elif self.cached:
-            regexp = r".*/(?P<course_id>.*)/(?P<student_id>.*)\+(?P<assignment_id>.*)\+(?P<timestamp>.*)"
+            regexp = r".*/(?P<course_id>.*)/(?P<student_id>[^+]*)\+(?P<assignment_id>[^+]*)\+(?P<timestamp>[^+]*)\+(?P<random_string>.*)"
         else:
             regexp = r".*/(?P<course_id>.*)/outbound/(?P<assignment_id>.*)"
 
