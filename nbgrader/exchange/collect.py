@@ -55,9 +55,26 @@ class ExchangeCollect(Exchange):
     def init_src(self):
         if self.coursedir.course_id == '':
             self.fail("No course id specified. Re-run with --course flag.")
-
+        
         self.course_path = os.path.join(self.root, self.coursedir.course_id)
-        self.inbound_path = os.path.join(self.course_path, 'inbound')
+        
+        # change sourse to http submit
+        if self.enable_http_submit:
+            self.log.info("Collecting from http submit ", self.http_submit_path)
+            #FIXME: http path is hard coded, change it
+            zipped_submission_list = [zipped_sub for zipped_sub in os.listdir(self.http_submit_path) if os.path.splitext(zipped_sub)[1] == ".zip"]
+            print ("zipped submission ", zipped_submission_list)            
+            self.log.info("Unpacking submission....")
+            self.inbound_path = os.path.join(self.http_submit_path, 'extracted') 
+            for zipped_sub in zipped_submission_list:
+                sub_path = os.path.join(self.http_submit_path, zipped_sub)
+                dest_path = os.path.join(self.inbound_path, os.path.splitext(zipped_sub)[0])
+                dest_path = os.path.join(self.http_submit_path, dest_path)
+                shutil.unpack_archive(sub_path, dest_path, "zip")
+            # FIXME: split inbound
+        else:
+            self.inbound_path = os.path.join(self.course_path, 'inbound')
+
         if not os.path.isdir(self.inbound_path):
             self.fail("Course not found: {}".format(self.inbound_path))
         
@@ -119,7 +136,8 @@ class ExchangeCollect(Exchange):
                     updating = True
             else:
                 copy = True
-
+            print ("src: ", src_path)
+            print ("dst: ", dest_path)
             if copy:
                 if updating:
                     self.log.info("Updating submission: {} {}".format(student_id, self.coursedir.assignment_id))
