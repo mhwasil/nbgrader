@@ -66,7 +66,7 @@ class CourseListHandler(IPythonHandler):
         header = {"Authorization": "token {}".format(self.token)}
         http_client = AsyncHTTPClient()
         try:
-            response = yield http_client.fetch(url, headers=header)
+            response = yield http_client.fetch(url, headers=header, validate_cert=False)
         except HTTPClientError:
             # local formgrader isn't running
             self.log.warning("Local formgrader does not seem to be running")
