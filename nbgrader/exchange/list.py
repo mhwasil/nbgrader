@@ -237,7 +237,7 @@ class ExchangeList(Exchange):
                 self.log.info(self.format_outbound_assignment(info))
         
         #make outbound dir read- and write- able, todo: FIXME, use the path defined in config
-        outbound_dir = os.path.join("/srv/nbgrader/exchange/Klausur/outbound")
+        outbound_dir = os.path.join(self.root, self.coursedir.course_id, 'inbound')
         os.chmod(outbound_dir, self.orx_perms)
         
         for assignment in self.assignments:
