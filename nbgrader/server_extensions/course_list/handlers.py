@@ -109,7 +109,7 @@ class CourseListHandler(IPythonHandler):
         auth = get_jupyterhub_authorization()
         http_client = AsyncHTTPClient()
         try:
-            yield http_client.fetch(url, headers=auth)
+            yield http_client.fetch(url, headers=auth, validate_cert=False)
         except:
             self.log.error("Formgrader not available at URL: %s", url)
             raise gen.Return([])
@@ -143,7 +143,7 @@ class CourseListHandler(IPythonHandler):
         auth = get_jupyterhub_authorization()
 
         http_client = AsyncHTTPClient()
-        response = yield http_client.fetch(url, headers=auth)
+        response = yield http_client.fetch(url, headers=auth, validate_cert=False)
 
         try:
             services = json.loads(response.body.decode())
