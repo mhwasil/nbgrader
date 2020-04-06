@@ -72,6 +72,8 @@ class ExchangeCollect(Exchange):
                 dest_path = os.path.join(self.http_submit_path, dest_path)
                 shutil.unpack_archive(sub_path, dest_path, "zip")
             # FIXME: split inbound
+        elif self.enable_k8s_submit:
+            self.inbound_path = os.path.join(self.course_path, self.k8s_inbound) 
         else:
             self.inbound_path = os.path.join(self.course_path, 'inbound')
 
