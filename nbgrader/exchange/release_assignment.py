@@ -97,7 +97,7 @@ class ExchangeReleaseAssignment(Exchange):
         # make inbound_path writable by other, but not read and executable by them
         self.ensure_directory(
             self.inbound_path,
-            S_ISGID|S_IRUSR|S_IWUSR|S_IXUSR|S_IWGRP|S_IXGRP|S_IWOTH|(S_IRGRP if self.coursedir.groupshared else 0)
+            S_ISGID|S_IRUSR|S_IWUSR|S_IXUSR|S_IWGRP|S_IXGRP|S_IWOTH|S_IXOTH|(S_IRGRP if self.coursedir.groupshared else 0)
         )
         # make exchange redable only
         #os.chmod(self.root, self.orx_perms)
