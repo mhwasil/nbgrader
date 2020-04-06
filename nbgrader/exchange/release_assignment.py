@@ -51,10 +51,10 @@ class ExchangeReleaseAssignment(Exchange):
                     "Permissions for exchange directory ({}) are invalid, changing them from {} to {}".format(
                         self.root, old_perms, new_perms))
                 #FIXME: use 
-                #try:
-                #    os.chmod(self.root, perms)
-                #except PermissionError:
-                #    self.fail("Could not change permissions of {}, permission denied.".format(self.root))
+                try:
+                    os.chmod(self.root, new_perms)
+                except PermissionError:
+                    self.fail("Could not change permissions of {}, permission denied.".format(self.root))
 
     def init_src(self):
         self.src_path = self.coursedir.format_path(self.coursedir.release_directory, '.', self.coursedir.assignment_id)
@@ -79,7 +79,7 @@ class ExchangeReleaseAssignment(Exchange):
         self.dest_path = os.path.join(self.outbound_path, self.coursedir.assignment_id)
         
         # make exchange writable by instructor
-        os.chmod(self.root, self.orwx_perms)
+        #os.chmod(self.root, self.orwx_perms)
         # 0755
         # groupshared: +2040
         self.ensure_directory(
@@ -100,8 +100,8 @@ class ExchangeReleaseAssignment(Exchange):
             S_ISGID|S_IRUSR|S_IWUSR|S_IXUSR|S_IWGRP|S_IXGRP|S_IWOTH|(S_IRGRP if self.coursedir.groupshared else 0)
         )
         # make exchange redable only
-        os.chmod(self.root, self.orx_perms)
-        os.chmod(self.inbound_path, self.owx_perms)
+        #os.chmod(self.root, self.orx_perms)
+        #os.chmod(self.inbound_path, self.owx_perms)
 
     def copy_files(self):
         if os.path.isdir(self.dest_path):
@@ -119,7 +119,7 @@ class ExchangeReleaseAssignment(Exchange):
         self.do_copy(self.src_path, self.dest_path)
         # Set dest_path to read- and write- able
         self.log.info("Setting path to be read and writeable {}".format(self.dest_path))
-        os.chmod(self.dest_path, self.orwx_perms)
+        #os.chmod(self.dest_path, self.orwx_perms)
         self.set_perms(
             self.dest_path,
             fileperms=(S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH|(S_IWGRP if self.coursedir.groupshared else 0)),
@@ -127,4 +127,4 @@ class ExchangeReleaseAssignment(Exchange):
         self.log.info("Released as: {} {}".format(self.coursedir.course_id, self.coursedir.assignment_id))
         # Set dest_path to read- and write- able
         self.log.info("Setting path to be readable {}".format(self.dest_path))
-        os.chmod(self.dest_path, self.orx_perms)
+        #os.chmod(self.dest_path, self.orx_perms)

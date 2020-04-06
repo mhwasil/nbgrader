@@ -38,14 +38,12 @@ class AssignmentList(LoggingConfigurable):
         paths = jupyter_config_path()
         paths.insert(0, os.getcwd())
 
-        config_found = False
-        full_config = Config()
-        for config in NbGrader._load_config_files("nbgrader_config", path=paths, log=self.log):
-            full_config.merge(config[0])
-            config_found = True
+        app = NbGrader()
+        app.config_file_paths.append(paths)
+        app.load_config_file()
 
         return app.config
-
+    
     @contextlib.contextmanager
     def get_assignment_dir_config(self):
         # first get the exchange assignment directory

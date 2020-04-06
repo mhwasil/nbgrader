@@ -238,7 +238,7 @@ class ExchangeList(Exchange):
         
         #make outbound dir read- and write- able, todo: FIXME, use the path defined in config
         outbound_dir = os.path.join(self.root, self.coursedir.course_id, 'inbound')
-        os.chmod(outbound_dir, self.orx_perms)
+        #os.chmod(outbound_dir, self.orx_perms)
         
         for assignment in self.assignments:
             # make assignment dir readable and writable
@@ -246,7 +246,7 @@ class ExchangeList(Exchange):
             shutil.rmtree(assignment)
 
         #make outbound_dir readable again        
-        os.chmod(outbound_dir, self.orx_perms)
+        #os.chmod(outbound_dir, self.orx_perms)
 
         return assignments
 
