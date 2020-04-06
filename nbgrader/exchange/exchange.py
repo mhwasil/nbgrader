@@ -99,6 +99,26 @@ class Exchange(LoggingConfigurable):
             """
         )
     ).tag(config=True)
+    
+    enable_k8s_submit = Bool(
+        False,
+        help="If enabled, the exchange of inbound and outbound is splitted"
+    ).tag(config=True)
+    
+    k8s_root = Unicode(
+        "/srv/nbgrader/exchange",
+        help="Exchange root directory"
+    ).tag(config=True)
+    
+    k8s_inbound = Unicode(
+        "inbound",
+        help="Exchange inbound directory"
+    ).tag(config=True)
+    
+    k8s_outbound = Unicode(
+        "outbound",
+        help="Exchange outbound directory"
+    ).tag(config=True)
 
     coursedir = Instance(CourseDirectory, allow_none=True)
     authenticator = Instance(Authenticator, allow_none=True)
