@@ -16,7 +16,7 @@ from jupyter_core.paths import jupyter_config_path
 
 from ...apps import NbGrader
 from ...coursedir import CourseDirectory
-from ...exchange import ExchangeList, ExchangeFetchAssignment, ExchangeFetchFeedback, ExchangeSubmit
+from ...exchange import ExchangeList, ExchangeFetchAssignment, ExchangeFetchFeedback, ExchangeSubmit, ExchangeError
 from ...auth import Authenticator
 from ... import __version__ as nbgrader_version
 
@@ -44,10 +44,7 @@ class AssignmentList(LoggingConfigurable):
             full_config.merge(config[0])
             config_found = True
 
-        if not config_found:
-            self.log.warning("No nbgrader_config.py file found. Rerun with DEBUG log level to see where nbgrader is looking.")
-
-        return full_config
+        return app.config
 
     @contextlib.contextmanager
     def get_assignment_dir_config(self):
@@ -60,9 +57,12 @@ class AssignmentList(LoggingConfigurable):
 
         # now cd to the full assignment directory and load the config again
         with chdir(assignment_dir):
-            for new_config in NbGrader._load_config_files("nbgrader_config", path=[os.getcwd()], log=self.log):
-                config.merge(new_config)
-            yield config
+
+            app = NbGrader()
+            app.config_file_paths.append(os.getcwd())
+            app.load_config_file()
+
+            yield app.config
 
     def list_released_assignments(self, course_id=None):
         with self.get_assignment_dir_config() as config:
@@ -78,13 +78,23 @@ class AssignmentList(LoggingConfigurable):
                     config=config)
                 assignments = lister.start()
 
-            except:
+            except Exception as e:
                 self.log.error(traceback.format_exc())
-                retvalue = {
-                    "success": False,
-                    "value": traceback.format_exc()
-                }
-
+                if isinstance(e, ExchangeError):
+                    retvalue = {
+                        "success": False,
+                        "value": """The exchange directory does not exist and could
+                                    not be created. The "release" and "collect" functionality will not be available.
+                                    Please see the documentation on
+                                    http://nbgrader.readthedocs.io/en/stable/user_guide/managing_assignment_files.html#setting-up-the-exchange
+                                    for instructions.
+                                """
+                    }
+                else:
+                    retvalue = {
+                        "success": False,
+                        "value": traceback.format_exc()
+                    }
             else:
                 for assignment in assignments:
                     if assignment['status'] == 'fetched':
@@ -113,13 +123,23 @@ class AssignmentList(LoggingConfigurable):
                     config=config)
                 assignments = lister.start()
 
-            except:
+            except Exception as e:
                 self.log.error(traceback.format_exc())
-                retvalue = {
-                    "success": False,
-                    "value": traceback.format_exc()
-                }
-
+                if isinstance(e, ExchangeError):
+                    retvalue = {
+                        "success": False,
+                        "value": """The exchange directory does not exist and could
+                                    not be created. The "release" and "collect" functionality will not be available.
+                                    Please see the documentation on
+                                    http://nbgrader.readthedocs.io/en/stable/user_guide/managing_assignment_files.html#setting-up-the-exchange
+                                    for instructions.
+                                """
+                    }
+                else:
+                    retvalue = {
+                        "success": False,
+                        "value": traceback.format_exc()
+                    }
             else:
                 for assignment in assignments:
                     assignment["submissions"] = sorted(
