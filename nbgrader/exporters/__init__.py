@@ -23,6 +23,7 @@ class FormExporter(HTMLExporter):
         cell = context.get('cell', {})
         metadata = context.get('cell', {}).metadata
         soup = BeautifulSoup(source, 'html.parser')
+        my_type = None
         if not soup.ul:
             return soup.prettify().replace('\n', '')
         if utils.is_singlechoice(cell):
