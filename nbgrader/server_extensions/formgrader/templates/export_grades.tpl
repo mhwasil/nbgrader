@@ -17,7 +17,7 @@ Export Grades
 <h4>Here you can export grades</h4>
 <p>There are two variants. Either on a notebook level (total score per notebook per student) or on a task level (score for each task of each notebook).</p>
 
-<a href="{{ base_url }}/formgrader/export_grades/notebooks" download="grades.csv">Download CSV - Notebooks only</a></br>
-<a href="{{ base_url }}/formgrader/export_grades/tasks" download="grades.csv">Download CSV - With Tasks</a>
+<a target="_blank" href="{{ base_url }}/formgrader/export_grades/notebooks" download="grades.csv">Download CSV - Notebooks only</a></br>
+<a target="_blank" href="{{ base_url }}/formgrader/export_grades/tasks" download="grades.csv">Download CSV - With Tasks</a>
 
 {%- endblock -%}
