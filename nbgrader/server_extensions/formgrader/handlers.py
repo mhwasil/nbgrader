@@ -26,7 +26,8 @@ class ExportTaskGradesHandler(BaseHandler):
         exporter = GradeTaskExporter(self.gradebook, self.coursedir.root)
         self.set_header('Content-Type', 'text/csv; charset="utf-8"')
         self.set_header('Content-Disposition', 'attachment; filename="grades.csv"')    
-        self.write(exporter.make_table().to_csv(index=False))    
+        self.write(exporter.make_table().to_csv(index=False))
+        self.finish() 
 
 
 class ExportNotebookGradesHandler(BaseHandler):
@@ -37,6 +38,7 @@ class ExportNotebookGradesHandler(BaseHandler):
         self.set_header('Content-Type', 'text/csv; charset="utf-8"')
         self.set_header('Content-Disposition', 'attachment; filename="grades.csv"')
         self.write(exporter.make_table().to_csv(index=False))
+        self.finish()
 
 
 class ManageAssignmentsHandler(BaseHandler):
