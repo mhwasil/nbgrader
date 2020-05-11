@@ -154,6 +154,7 @@ class GradeNotebookExporter(GradeExporter):
         .filter(SubmittedNotebook.notebook_id == Notebook.id) \
         .filter(Grade.notebook_id == SubmittedNotebook.id) \
         .group_by(SubmittedAssignment.student_id) \
+        .group_by(Assignment.name) \
         .all()
         return grades
     
