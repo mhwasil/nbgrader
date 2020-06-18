@@ -12,7 +12,6 @@ from ..utils import check_mode, parse_utc
 
 import pandas as pd
 import csv
-import re
 
 # pwd is for matching unix names with student ide, so we shouldn't import it on
 # windows machines
