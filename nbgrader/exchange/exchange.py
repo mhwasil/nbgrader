@@ -120,6 +120,14 @@ class Exchange(LoggingConfigurable):
         help="Exchange outbound directory"
     ).tag(config=True)
 
+    restrict_submit = Bool(
+        False,
+        help=dedent(
+            "Whether to create submit directory for each JupyterHub user"
+            "This only works with k8s and needs JupyterHub"
+        )
+    ).tag(config=True)
+
     coursedir = Instance(CourseDirectory, allow_none=True)
     authenticator = Instance(Authenticator, allow_none=True)
 
