@@ -71,7 +71,6 @@ class ExchangeCollect(Exchange):
                 dest_path = os.path.join(self.inbound_path, os.path.splitext(zipped_sub)[0])
                 dest_path = os.path.join(self.http_submit_path, dest_path)
                 shutil.unpack_archive(sub_path, dest_path, "zip")
-            # FIXME: split inbound
         elif self.enable_k8s_submit:
             self.inbound_path = os.path.join(self.course_path, self.k8s_inbound) 
         else:
@@ -82,11 +81,40 @@ class ExchangeCollect(Exchange):
         
         if not check_mode(self.inbound_path, read=True, execute=True):
             self.fail("You don't have read permissions for the directory: {}".format(self.inbound_path))
-        student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
-        pattern = os.path.join(self.inbound_path, '{}+{}+*'.format(student_id, self.coursedir.assignment_id))
-        records = [self._path_to_record(f) for f in glob.glob(pattern)]
-        usergroups = groupby(records, lambda item: item['username'])
-        self.src_records = [self._sort_by_timestamp(v)[0] for v in usergroups.values()]
+
+        #look into student id dir if submission dir is restricted
+        if self.restrict_submit:
+            self.log.info("Collecting from restricted submit dirs")
+            #skip dir that contains nbgrader submit patter, take dir with username only e.g. mwasil2s
+            submit_dirs = [username for username in os.listdir(self.inbound_path) if "+" not in username and 
+                           os.path.isdir(os.path.join(self.inbound_path, username))]
+            self.log.info("Submission dirs {}".format(submit_dirs))
+
+            self.src_records = []
+            for username in submit_dirs:
+                submit_path = os.path.join(self.inbound_path, username)
+                self.log.info("Assignment id: {}".format(self.coursedir.assignment_id))
+                pattern = os.path.join(submit_path, '{}+{}+*'.format(username, self.coursedir.assignment_id))
+                records = [self._path_to_record(f) for f in glob.glob(pattern)]
+                self.log.info("[{}] Total submission: ".format(username, len(records)))
+                #update file path
+                for i,record in enumerate(records):
+                    filename = os.path.join(submit_path,record['filename'])
+                    records[i]['filename'] = filename
+                
+                usergroups = groupby(records, lambda item: item['username'])
+                user_record = self._sort_by_timestamp(records)
+                self.log.info("[{}]: {}".format(username, user_record))
+                if len(user_record) > 0:
+                    self.src_records.append(user_record[0])
+
+        else:
+            student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
+            pattern = os.path.join(self.inbound_path, '{}+{}+*'.format(student_id, self.coursedir.assignment_id))
+        
+            records = [self._path_to_record(f) for f in glob.glob(pattern)]
+            usergroups = groupby(records, lambda item: item['username'])
+            self.src_records = [self._sort_by_timestamp(v)[0] for v in usergroups.values()]
 
     def init_dest(self):
         pass
