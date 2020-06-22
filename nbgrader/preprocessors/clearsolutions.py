@@ -144,6 +144,10 @@ class ClearSolutions(NbGraderPreprocessor):
                         resources: ResourcesDict,
                         cell_index: int
                         ) -> Tuple[NotebookNode, ResourcesDict]:
+        # ignore extra cells
+        if utils.is_extra_cell(cell):
+            return cell, resources
+        
         # replace solution regions with the relevant stubs
         language = resources["language"]
         replaced_solution = self._replace_solution_region(cell, language)
