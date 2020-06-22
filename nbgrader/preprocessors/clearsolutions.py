@@ -144,8 +144,9 @@ class ClearSolutions(NbGraderPreprocessor):
                         resources: ResourcesDict,
                         cell_index: int
                         ) -> Tuple[NotebookNode, ResourcesDict]:
-        # ignore extra cells
-        if utils.is_extra_cell(cell):
+        # remove choices from choice cells
+        if utils.is_multiplechoice(cell) or utils.is_singlechoice(cell):
+            utils.clear_choices(cell)
             return cell, resources
         
         # replace solution regions with the relevant stubs
