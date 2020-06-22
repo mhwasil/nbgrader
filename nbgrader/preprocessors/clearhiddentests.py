@@ -92,6 +92,10 @@ class ClearHiddenTests(NbGraderPreprocessor):
                         resources: ResourcesDict,
                         cell_index: int
                         ) -> Tuple[NotebookNode, ResourcesDict]:
+        # remove choices from choice cells
+        if utils.is_multiplechoice(cell) or utils.is_singlechoice(cell):
+            utils.clear_choices(cell)
+            return cell, resources
         # remove hidden test regions
         removed_test = self._remove_hidden_test_region(cell)
 
