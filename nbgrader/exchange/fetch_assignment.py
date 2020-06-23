@@ -85,7 +85,7 @@ class ExchangeFetchAssignment(Exchange):
             if os.path.exists(os.path.join(src, os.getenv('JUPYTERHUB_USER'))):
                 src = os.path.join(src, os.getenv('JUPYTERHUB_USER'))
             else:
-                self.log.warning('Using personalized outbound, but no directory for user {} exists.format(os.getenv('JUPYTERHUB_USER')))
+                self.log.warning('Using personalized outbound, but no directory for user {} exists'.format(os.getenv('JUPYTERHUB_USER')))
             
         if os.path.isdir(self.dest_path):
             self.copy_if_missing(src, dest, ignore=shutil.ignore_patterns(*self.coursedir.ignore))
