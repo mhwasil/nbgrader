@@ -127,6 +127,13 @@ class Exchange(LoggingConfigurable):
             "This only works with k8s and needs JupyterHub"
         )
     ).tag(config=True)
+    
+    personalized_outbound = Bool(
+        False,
+        help=dedent(
+            "Whether to use a personalized outbound directory per student or not"
+        )
+    ).tag(config=True)
 
     coursedir = Instance(CourseDirectory, allow_none=True)
     authenticator = Instance(Authenticator, allow_none=True)
