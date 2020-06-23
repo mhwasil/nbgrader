@@ -81,8 +81,12 @@ class ExchangeFetchAssignment(Exchange):
     def do_copy(self, src, dest):
         """Copy the src dir to the dest dir omitting the self.coursedir.ignore globs."""
         # Check if there is a version for the student
-        if os.path.exists(os.path.join(src, os.getenv('JUPYTERHUB_USER'))):
-            src = os.path.join(src, os.getenv('JUPYTERHUB_USER'))
+        if self.personalized_outbound:
+            if os.path.exists(os.path.join(src, os.getenv('JUPYTERHUB_USER'))):
+                src = os.path.join(src, os.getenv('JUPYTERHUB_USER'))
+            else:
+                self.log.warning('Using personalized outbound, but no directory for user {} exists.format(os.getenv('JUPYTERHUB_USER')))
+            
         if os.path.isdir(self.dest_path):
             self.copy_if_missing(src, dest, ignore=shutil.ignore_patterns(*self.coursedir.ignore))
         else:
