@@ -36,10 +36,7 @@ class ExchangeFetchAssignment(Exchange):
             self.fail("You do not have access to this course.")
 
         self.course_path = os.path.join(self.root, self.coursedir.course_id)
-        if self.personalized_outbound:
-            self.outbound_path = os.path.join(self.course_path, 'personalized-outbound')
-        else:
-            self.outbound_path = os.path.join(self.course_path, 'outbound')
+        self.outbound_path = os.path.join(self.course_path, self.outbound_dir)
 
         self.src_path = os.path.join(self.outbound_path, self.coursedir.assignment_id)
         if not os.path.isdir(self.src_path):
