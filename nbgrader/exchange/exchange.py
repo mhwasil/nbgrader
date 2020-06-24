@@ -135,6 +135,13 @@ class Exchange(LoggingConfigurable):
         )
     ).tag(config=True)
 
+    outbound_dir = Unicode(
+        "outbound",
+        help=dedent(
+            "Which outbound directory to use"
+        )
+    ).tag(config=True)
+
     coursedir = Instance(CourseDirectory, allow_none=True)
     authenticator = Instance(Authenticator, allow_none=True)
 
@@ -146,6 +153,8 @@ class Exchange(LoggingConfigurable):
         self.ow_perms = (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IWOTH)
         self.orx_perms = (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH)
         self.orwx_perms = (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IWOTH|S_IXOTH)
+        if self.personalized_outbound:
+            self.outbound_dir = "personalized-outbound"
 
     def fail(self, msg):
         self.log.fatal(msg)

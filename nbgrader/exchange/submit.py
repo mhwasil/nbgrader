@@ -87,7 +87,7 @@ class ExchangeSubmit(Exchange):
             self.fail("No course id specified. Re-run with --course flag.")
 
         course_path = os.path.join(self.root, self.coursedir.course_id)
-        outbound_path = os.path.join(course_path, 'outbound')
+        outbound_path = os.path.join(course_path, self.outbound_dir)
         self.release_path = os.path.join(outbound_path, self.coursedir.assignment_id)
         if not os.path.isdir(self.release_path):
             self.fail("Assignment not found: {}".format(self.release_path))
